@@ -21,9 +21,7 @@ exports.getUntranslatedMessages = function(languageCode ,cb) {
             }
         }, (error, response, body) => {
             body = JSON.parse(body);
-
             const mwMessageCollection = body.query.messagecollection;
-
             cb(mwMessageCollection);
         }
     );
@@ -188,7 +186,8 @@ exports.getTranslationMemory = function(title, cb) {
     );
 };
 
-exports.languageSearch = function(languageString) {
+exports.languageSearch = function(languageString, callback) {
+
     request.post({
             url: apiUrl,
             form: {
@@ -197,10 +196,13 @@ exports.languageSearch = function(languageString) {
                  search: languageString
             }
         }, (error, response, body) => {
-            body = JSON.parse(body);
 
-            console.log(body);
+            body = JSON.parse(body);
+            callback(body);
+
+
         }
     );
+
 };
 
