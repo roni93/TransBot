@@ -29,20 +29,20 @@ function processTgMessage(tgMsg) {
     if (user.state === TRANS_MODE) {
         trans(user, tgMsg);
     }
-    if(user.state === RESPONSE_MODE){
-        user.state= TRANS_MODE;
-        publishTrans(user,tgMsg);
+    if (user.state === RESPONSE_MODE) {
+        user.state = TRANS_MODE;
+        publishTrans(user, tgMsg);
 
     }
 
 }
 
 
-function publishTrans(user, tgMsg){
+function publishTrans(user, tgMsg) {
 
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-
+    console.log(text);
 
     // TODO: Now it logs in every single time.
     // It really should try to reuse the login sessions.
@@ -94,18 +94,26 @@ function setLanguage(tgMsg, user) {
         if (arg.languagesearch === []) {
         }
         else {
-            const inlineKeyboard = [];
-            for (let key in setLang)
-                inlineKeyboard.push([{text: setLang[key], callback_data: key}]);
+            user.fullLang = arg.languagesearch;
 
-            const tgMsgOptions = {
-                reply_markup: JSON.stringify({
-                    inline_keyboard: inlineKeyboard
-                })
-            };
-            user.state = LANG_SELECTED_MODE;
-            tgBot.sendMessage(user.id, "please select your language:", tgMsgOptions);
+            if (Object.keys(arg.languagesearch).length === 1) {
+                user.state = LANG_SELECTED_MODE;
+                user.lang = Object.keys(arg.languagesearch)[0];
+                langSelected(user, tgMsg, false);
+            }
+            else {
+                const inlineKeyboard = [];
+                for (let key in setLang)
+                    inlineKeyboard.push([{text: setLang[key], callback_data: key}]);
 
+                const tgMsgOptions = {
+                    reply_markup: JSON.stringify({
+                        inline_keyboard: inlineKeyboard
+                    })
+                };
+                user.state = LANG_SELECTED_MODE;
+                tgBot.sendMessage(user.id, "please select your language:", tgMsgOptions);
+            }
         }
     })
 }
@@ -137,6 +145,7 @@ function initUser(tgMsg) {
         id: tgMsg.from.id,
         firstName: tgMsg.from.first_name,
         lang: tgMsg.from.language_code,
+        fullLang: "",
         state: START_MODE,
         currentMwMessageIndex: 0,
         loadedMwMessages: [],
@@ -151,9 +160,7 @@ function newUser(user) {
 
     var options = {
         reply_markup: JSON.stringify({
-            inline_keyboard: [
-                [{text: 'Set language', callback_data: 'change-language'}]
-            ]
+            inline_keyboard: [[{text: 'Set language', callback_data: 'change-language'}]]
         })
     };
     tgBot.sendMessage(user.id, "What would you like to do?", options);
@@ -195,7 +202,7 @@ function showUnTrans(user, tgMsg) {
         if (targetMwMessage.translation !== null) {
             tgBot.sendMessage(user.id, "Current translation: " + targetMwMessage.translation);
         }
-        user.state= RESPONSE_MODE;
+        user.state = RESPONSE_MODE;
     });
 }
 
@@ -236,15 +243,12 @@ tgBot.on("callback_query", (tgMsg) => {
         tgBot.sendMessage(user.id, "Please type your language:");
     }
     if (user.state === LANG_SELECTED_MODE) {
-        user.lang = tgMsg.data;
-        tgBot.sendMessage(user.id, "Your language set to " + user.lang);
-        user.state = TRANS_MODE;
-        breakPoint(tgMsg, user, false);
+        langSelected(user, tgMsg, true);
     }
     if (user.state === TRANS_MODE && tgMsg.data === "start-trans") {
         trans(user, tgMsg)
     }
-    if (user.state === TRANS_MODE && tgMsg.data === "doc") {
+    if (user.state === RESPONSE_MODE && tgMsg.data === "doc") {
         const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
         const title = targetMwMessage.title;
         mediaWikiAPI.getDocumentation(title, (documentation) => {
@@ -254,20 +258,28 @@ tgBot.on("callback_query", (tgMsg) => {
             );
         });
     }
-    if (user.state === TRANS_MODE && tgMsg.data === "skip") {
+    if (user.state === RESPONSE_MODE && tgMsg.data === "skip") {
 
     }
-    if (user.state === TRANS_MODE && tgMsg.data === "similar") {
+    if (user.state === RESPONSE_MODE && tgMsg.data === "similar") {
         showAndCacheSimilar(user);
     }
 });
 
+function langSelected(user, tgMsg, flag) {
 
-function showAndCacheSimilar(user){
+    if (flag)
+        user.lang = tgMsg.data;
+    tgBot.sendMessage(user.id, "Your language set to " + user.fullLang[user.lang]);
+    user.state = TRANS_MODE;
+    breakPoint(tgMsg, user, false);
+}
+
+function showAndCacheSimilar(user) {
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     const title = targetMwMessage.title;
 
-    if(user.loadedTranslationMemory[targetMwMessage.title]!== undefined){
+    if (user.loadedTranslationMemory[targetMwMessage.title] !== undefined) {
         const ttmCache = user.loadedTranslationMemory[targetMwMessage.title];
         for (i = 0; i < ttmCache.length; i++) {
             tgBot.sendMessage(user.id, ttmCache[i]);
