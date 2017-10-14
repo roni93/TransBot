@@ -11,10 +11,11 @@ const START_MODE = "start";
 const LANG_MODE = "language";
 const LANG_SELECTED_MODE = "langSelected";
 const TRANS_MODE = "translate";
+const RESPONSE_MODE = "waitForTrans";
 
 const tgBot = new tgFancyBot('375437667:AAHzCxvO7LZnHPb6YNQTZVgrgLbjq5Ly0JE', {polling: true});
 
-var registeredUsers = {};
+let registeredUsers = {};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
 
@@ -26,21 +27,59 @@ function processTgMessage(tgMsg) {
         setLanguage(tgMsg, user);
     }
     if (user.state === TRANS_MODE) {
-        trans(user,tgMsg);
+        trans(user, tgMsg);
+    }
+    if(user.state === RESPONSE_MODE){
+        user.state= TRANS_MODE;
+        publishTrans(user,tgMsg);
+
     }
 
 }
 
-function breakPoint(tgMsg,user){
-    let options = {
-        reply_markup: JSON.stringify({
-            inline_keyboard: [
-                [{text: 'Start Translate', callback_data: 'start-trans'}],
-                [{text: 'Help', callback_data: 'help'}]
-            ]
-        })
-    };
-    tgBot.sendMessage(user.id, "for help in any moment please type '/help', or press now", options);
+
+function publishTrans(user, tgMsg){
+
+    const text = tgMsg.text;
+    const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+
+
+    // TODO: Now it logs in every single time.
+    // It really should try to reuse the login sessions.
+    mediaWikiAPI.login("RoniTransBot", "12345678", () => {
+        // mediaWikiAPI.addTranslation(
+        //     targetMwMessage.title, text,
+        //     "Made with Telegram Bot",
+        //     () => {
+        //        // storePublishingTgMessage(tgMsg, targetMwMessage);
+        //     }
+        // );
+        user.currentMwMessageIndex++;
+    });
+}
+
+function breakPoint(tgMsg, user, flag) {
+    if (!flag) {
+        let options = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [
+                    [{text: 'Start Translate', callback_data: 'start-trans'}],
+                    [{text: 'Help', callback_data: 'help'}]
+                ]
+            })
+        };
+        tgBot.sendMessage(user.id, "for help in any moment please type '/help', or press now", options);
+    }
+    else {
+        let options = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [
+                    [{text: 'Start Translate', callback_data: 'start-trans'}]
+                ]
+            })
+        };
+        tgBot.sendMessage(user.id, "Please press 'Start Translate'", options);
+    }
 }
 
 function setLanguage(tgMsg, user) {
@@ -83,7 +122,6 @@ function validTgMessage(tgMsg) {
 }
 
 
-
 function getUser(tgMsg) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
@@ -121,24 +159,60 @@ function newUser(user) {
     tgBot.sendMessage(user.id, "What would you like to do?", options);
 }
 
-function trans(user, tgMsg) {
-    if(user.currentMwMessageIndex === 10 || user.loadedMwMessages.length ===0)
-        loadUntranslated(user, (loadedMwMessages)=>{
-            console.log(loadedMwMessages);
-            user.loadedMwMessages=loadedMwMessages;
-        });
+function showUnTrans(user, tgMsg) {
+    let targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+    if (targetMwMessage === undefined) {
+        breakPoint(tgMsg, user, false);
+        // TODO: Show the welcome menu instead
+        return;
+    }
 
-    //console.log(user.loadedMwMessages);
+    mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
+        targetMwMessage.translationMemory = translationMemory;
 
-    console.log(user.loadedMwMessages[user.currentMwMessageIndex]);
+        if (targetMwMessage.translationMemory.length === 0) {
+            console.log(user.id, `No translation memory was found for "${targetMwMessage.title}"`
+            );
+        }
+        const inlineKeyboard = [];
 
-    //tgBot.sendMessage(user.id, user.loadedMwMessages[user.currentMwMessageIndex]);
 
+        inlineKeyboard.push([{text: "Documentation", callback_data: "doc"}, {
+            text: "Skip message",
+            callback_data: "skip"
+        }, {text: "Similar message", callback_data: "similar"}]);
+        const tgMsgOptions = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: inlineKeyboard
+            })
+        };
+
+        tgBot.sendMessage(
+            user.id,
+            targetMwMessage.definition,
+            tgMsgOptions
+        );
+        if (targetMwMessage.translation !== null) {
+            tgBot.sendMessage(user.id, "Current translation: " + targetMwMessage.translation);
+        }
+        user.state= RESPONSE_MODE;
+    });
 }
 
-function loadUntranslated(user,cb) {
-        user.loadedMwMessages=[];
-        mediaWikiAPI.getUntranslatedMessages(user.lang, (mwMessageCollection) => {
+function trans(user, tgMsg) {
+    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0)
+        loadUntranslated(user, (loadedMwMessages) => {
+            user.loadedMwMessages = loadedMwMessages;
+            showUnTrans(user, tgMsg);
+        });
+    else {
+        showUnTrans(user, tgMsg);
+    }
+}
+
+function loadUntranslated(user, cb) {
+    user.loadedMwMessages = [];
+    mediaWikiAPI.getUntranslatedMessages(user.lang, (mwMessageCollection) => {
         user.loadedMwMessages = mwMessageCollection.filter((mwMessageData) => {
             return validTgMessage(mwMessageData.definition);
         });
@@ -152,7 +226,11 @@ function loadUntranslated(user,cb) {
 }
 
 tgBot.on("callback_query", (tgMsg) => {
+    setTimeout(TimeOut, CLEAR_SESSION);
     let user = registeredUsers[tgMsg.from.id];
+    if (tgMsg.data === "help") {
+        helpFunction(tgMsg);
+    }
     if (user.state === START_MODE) {
         user.state = LANG_MODE;
         tgBot.sendMessage(user.id, "Please type your language:");
@@ -161,25 +239,78 @@ tgBot.on("callback_query", (tgMsg) => {
         user.lang = tgMsg.data;
         tgBot.sendMessage(user.id, "Your language set to " + user.lang);
         user.state = TRANS_MODE;
-
-        breakPoint(tgMsg,user);
+        breakPoint(tgMsg, user, false);
     }
-    if(user.state === TRANS_MODE && tgMsg.data === "start-trans"){
-        trans(user,tgMsg)
+    if (user.state === TRANS_MODE && tgMsg.data === "start-trans") {
+        trans(user, tgMsg)
     }
+    if (user.state === TRANS_MODE && tgMsg.data === "doc") {
+        const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+        const title = targetMwMessage.title;
+        mediaWikiAPI.getDocumentation(title, (documentation) => {
+            tgBot.sendMessage(
+                user.id,
+                documentation
+            );
+        });
+    }
+    if (user.state === TRANS_MODE && tgMsg.data === "skip") {
 
+    }
+    if (user.state === TRANS_MODE && tgMsg.data === "similar") {
+        showAndCacheSimilar(user);
+    }
 });
 
+
+function showAndCacheSimilar(user){
+    const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+    const title = targetMwMessage.title;
+
+    if(user.loadedTranslationMemory[targetMwMessage.title]!== undefined){
+        const ttmCache = user.loadedTranslationMemory[targetMwMessage.title];
+        for (i = 0; i < ttmCache.length; i++) {
+            tgBot.sendMessage(user.id, ttmCache[i]);
+        }
+    }
+    else {
+        mediaWikiAPI.getTranslationMemory(title, (translationMemory) => {
+            let i;
+            if (translationMemory.length === 0) {
+                tgBot.sendMessage(user.id, `No translation memory was found for "${title}"`);
+                return;
+            }
+
+            for (i = 0; i < translationMemory.length; i++) {
+                cacheTranslationMemory(user, targetMwMessage, i, translationMemory[i].target);
+            }
+
+            const ttmCache = user.loadedTranslationMemory[targetMwMessage.title];
+            for (i = 0; i < ttmCache.length; i++) {
+                tgBot.sendMessage(user.id, ttmCache[i]);
+            }
+        });
+    }
+}
+
+function cacheTranslationMemory(user, targetMwMessage, i, text) {
+    const title = targetMwMessage.title;
+
+    if (user.loadedTranslationMemory[title] === undefined) {
+        user.loadedTranslationMemory[title] = [];
+    }
+    user.loadedTranslationMemory[title][i] = text;
+}
 
 tgBot.onText(/.*/, processTgMessage);
 tgBot.onText(/help/, helpFunction);
 
 
 function helpFunction(tgMsg) {
-     let user = registeredUsers[tgMsg.from.id];
-     tgBot.sendMessage(user.id, "HELP!!!");
-     breakPoint(tgMsg,user);
- }
+    let user = registeredUsers[tgMsg.from.id];
+    tgBot.sendMessage(user.id, "HELP!!!");
+    breakPoint(tgMsg, user, true);
+}
 
 function TimeOut() {
     //exit

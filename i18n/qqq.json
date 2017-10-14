@@ -1,0 +1,18 @@
+{
+	"@metadata": {
+		"authors": [
+			"Amire80"
+		]
+	},
+	"tgbot-what-would-you-like-prompt": "A prompt that is shown as a message when there's nothing else to do.",
+	"tgbot-load-messages": "A button that appears under {{msg-tgbot|tgbot-what-would-you-like-prompt}}. Tapping the button loads new untranslated messages.",
+	"tgbot-get-documentation": "Appears on a button under a translatable message. Tapping the button sends a chat message with the documentation about the translatable message.",
+	"tgbot-your-language-is": "Shown as a message. The next message is the user's currently selected language.",
+	"tgbot-automatically-setting-your-language": "Shown as a message. The next message is a language code.",
+	"tgbot-to-change-your-language": "Shown as a message after {{mwg-tgbot|tgbot-automatically-setting-your-language}}.",
+	"tgbot-show-translations-of-similar": "Appears on a button under a translatable message. Tapping the button sends chat messages with translation of similar messages (translation memory).",
+	"tgbot-the-current-translation-is": "Shown as a chat message after a fuzzy translatable message and before its current translation.",
+	"tgbot-skip-current-message": "Appears on a button under a translateable message. Tapping the button allows user to skip translating the current message.",
+	"tgbot-no-untranslated-messages-left": "Shown as a chat message when a user has no messages left from the current query to translate.",
+	"tgbot-next-message": "Shown as a chat message after a user skips the current untranslated message and before the next untranslated message is displayed."
+}
