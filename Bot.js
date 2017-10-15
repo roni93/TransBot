@@ -48,13 +48,60 @@ function publishTrans(user, tgMsg) {
     // It really should try to reuse the login sessions.
     mediaWikiAPI.login("RoniTransBot", "12345678", () => {
         // mediaWikiAPI.addTranslation(
+        //
         //     targetMwMessage.title, text,
         //     "Made with Telegram Bot",
         //     () => {
         //        // storePublishingTgMessage(tgMsg, targetMwMessage);
         //     }
         // );
+        user.publishingTgMessages[targetMwMessage]=text;
         user.currentMwMessageIndex++;
+    });
+}
+
+tgBot.on("callback_query", (tgMsg) => {
+    setTimeout(TimeOut, CLEAR_SESSION);
+    let user = registeredUsers[tgMsg.from.id];
+    if (tgMsg.data === "help") {
+        helpFunction(tgMsg);
+    }
+    if (user.state === START_MODE) {
+        user.state = LANG_MODE;
+        tgBot.sendMessage(user.id, "Please type your language:");
+    }
+    if (user.state === LANG_SELECTED_MODE) {
+        langSelected(user, tgMsg, true);
+    }
+    if (user.state === TRANS_MODE && tgMsg.data === "start-trans") {
+        trans(user, tgMsg)
+    }
+    if (user.state === RESPONSE_MODE && tgMsg.data === "doc") {
+       showDocumentation(user);
+    }
+    if (user.state === RESPONSE_MODE && tgMsg.data === "skip") {
+        skipMsg(user,tgMsg);
+    }
+    if (user.state === RESPONSE_MODE && tgMsg.data === "similar") {
+        showAndCacheSimilar(user);
+    }
+});
+
+function skipMsg(user, tgMsg) {
+    user.skippedMrddages.push(user.loadedMwMessages[user.currentMwMessageIndex]);
+    user.currentMwMessageIndex++;
+    trans(user,tgMsg);
+
+}
+
+function  showDocumentation(user) {
+    const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+    const title = targetMwMessage.title;
+    mediaWikiAPI.getDocumentation(title, (documentation) => {
+        tgBot.sendMessage(
+            user.id,
+            documentation
+        );
     });
 }
 
@@ -148,6 +195,7 @@ function initUser(tgMsg) {
         fullLang: "",
         state: START_MODE,
         currentMwMessageIndex: 0,
+        skippedMrddages: [],
         loadedMwMessages: [],
         loadedTranslationMemory: {},
         publishingTgMessages: {},
@@ -207,11 +255,13 @@ function showUnTrans(user, tgMsg) {
 }
 
 function trans(user, tgMsg) {
-    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0)
+    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0){
         loadUntranslated(user, (loadedMwMessages) => {
+
             user.loadedMwMessages = loadedMwMessages;
             showUnTrans(user, tgMsg);
         });
+    console.log("load")}
     else {
         showUnTrans(user, tgMsg);
     }
@@ -232,39 +282,7 @@ function loadUntranslated(user, cb) {
     });
 }
 
-tgBot.on("callback_query", (tgMsg) => {
-    setTimeout(TimeOut, CLEAR_SESSION);
-    let user = registeredUsers[tgMsg.from.id];
-    if (tgMsg.data === "help") {
-        helpFunction(tgMsg);
-    }
-    if (user.state === START_MODE) {
-        user.state = LANG_MODE;
-        tgBot.sendMessage(user.id, "Please type your language:");
-    }
-    if (user.state === LANG_SELECTED_MODE) {
-        langSelected(user, tgMsg, true);
-    }
-    if (user.state === TRANS_MODE && tgMsg.data === "start-trans") {
-        trans(user, tgMsg)
-    }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "doc") {
-        const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-        const title = targetMwMessage.title;
-        mediaWikiAPI.getDocumentation(title, (documentation) => {
-            tgBot.sendMessage(
-                user.id,
-                documentation
-            );
-        });
-    }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "skip") {
 
-    }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "similar") {
-        showAndCacheSimilar(user);
-    }
-});
 
 function langSelected(user, tgMsg, flag) {
 
