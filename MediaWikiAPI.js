@@ -6,7 +6,7 @@ const request = require("request").defaults({
 
 const apiUrl = "https://translatewiki.net/w/api.php";
 
-exports.getUntranslatedMessages = function(languageCode ,cb) {
+exports.getUntranslatedMessages = function (languageCode, cb) {
     request.post({
             url: apiUrl,
             form: {
@@ -27,7 +27,9 @@ exports.getUntranslatedMessages = function(languageCode ,cb) {
     );
 };
 
-exports.login = function(username, password, cb) {
+
+
+exports.login = function (username, password, cb) {
     request.post({
             url: apiUrl,
             form: {
@@ -36,7 +38,8 @@ exports.login = function(username, password, cb) {
                 prop: "",
                 meta: "tokens",
                 type: "login"
-            } },
+            }
+        },
         (error, response, body) => {
             console.log("Token request over");
 
@@ -51,9 +54,7 @@ exports.login = function(username, password, cb) {
             console.log(`Got MediaWiki login token: ${body}`);
 
             body = JSON.parse(body);
-
             const mwLoginToken = body.query.tokens.logintoken;
-
             console.log("Trying to authenticate");
             request.post({
                     url: apiUrl,
@@ -63,7 +64,8 @@ exports.login = function(username, password, cb) {
                         lgname: username,
                         lgpassword: password,
                         lgtoken: mwLoginToken
-                    } },
+                    }
+                },
                 (error, response, body) => {
                     if (error || response.statusCode !== 200) {
                         console.log("Error logging in");
@@ -89,15 +91,25 @@ exports.login = function(username, password, cb) {
     );
 };
 
-exports.addTranslation = function(title, translation, summary, cb) {
+exports.addTranslation = function (title, translation, summary, cb) {
+
+    const oauth_edit = {
+        consumer_key: "e76bf74ff77abd1e1548ad6b55c94eec",
+        consumer_secret: "a0a7d0680d90321bcd41926e0ae7d5bb6b4c7e70",
+        //token: auth_data.oauth_token,
+        //token_secret: req_data.oauth_token_secret,
+        verifier: "3b8d8050417c9dd7ee065e09acca4ba1"
+    };
     request.post({
             url: apiUrl,
+            oauth: oauth_edit,
             form: {
                 action: "query",
                 format: "json",
                 meta: "tokens",
                 type: "csrf"
-            } },
+            }
+        },
         (error, response, body) => {
             console.log("Edit token request over");
 
@@ -105,15 +117,13 @@ exports.addTranslation = function(title, translation, summary, cb) {
                 console.log("Error getting edit token");
                 console.log(`statusCode: ${response.statusCode}`);
                 console.log(`error: ${error}`);
-
                 return;
             }
 
             body = JSON.parse(body);
-
+            console.log(body);
             const mwEditToken = body.query.tokens.csrftoken;
             console.log(`Got edit token ${mwEditToken}`);
-
             request.post({
                     url: apiUrl,
                     form: {
@@ -124,7 +134,8 @@ exports.addTranslation = function(title, translation, summary, cb) {
                         summary,
                         tags: "TelegramBot",
                         token: mwEditToken
-                    } },
+                    }
+                },
                 (error, response, body) => {
                     console.log("Edit request over");
 
@@ -132,19 +143,16 @@ exports.addTranslation = function(title, translation, summary, cb) {
                         console.log("Error editing");
                         console.log(`statusCode: ${response.statusCode}`);
                         console.log(`error: ${error}`);
-
                         return;
                     }
-
                     console.log("Translation published");
-
                     cb();
                 });
         }
     );
 };
 
-exports.getDocumentation = function(title, cb) {
+exports.getDocumentation = function (title, cb) {
     request.post({
             url: apiUrl,
             form: {
@@ -165,7 +173,7 @@ exports.getDocumentation = function(title, cb) {
     );
 };
 
-exports.getTranslationMemory = function(title, cb) {
+exports.getTranslationMemory = function (title, cb) {
     request.post({
             url: apiUrl,
             form: {
@@ -177,23 +185,20 @@ exports.getTranslationMemory = function(title, cb) {
         }, (error, response, body) => {
             const translationaids = JSON.parse(body);
 
-            console.log("translationaids, ttmserver:");
-            console.log(translationaids);
-
             // TODO: Handle the case that it doesn't exist, invalid, etc.
             cb(translationaids.helpers.ttmserver);
         }
     );
 };
 
-exports.languageSearch = function(languageString, callback) {
+exports.languageSearch = function (languageString, callback) {
 
     request.post({
             url: apiUrl,
             form: {
-                 action: "languagesearch",
-                 format: "json",
-                 search: languageString
+                action: "languagesearch",
+                format: "json",
+                search: languageString
             }
         }, (error, response, body) => {
 
@@ -203,6 +208,27 @@ exports.languageSearch = function(languageString, callback) {
 
         }
     );
+
+};
+var MediaWikiStrategy = require('passport-mediawiki-oauth').OAuthStrategy;
+var passport = require('passport');
+exports.signIn = function (title, cb) {
+
+    passport.use(new MediaWikiStrategy({
+            consumerKey: 'e76bf74ff77abd1e1548ad6b55c94eec',
+            consumerSecret: 'a0a7d0680d90321bcd41926e0ae7d5bb6b4c7e70',
+            callbackURL: 'oob'
+        }, function (token, tokenSecret, profile, done) {
+            console.log(token);
+            User.findOrCreate({mediawikiGlobalId: profile.id}, function (err, user) {
+                console.log(3);
+            });
+        }
+    ));
+    // request.get('https://en.wikipedia.org/w/index.php?title=Special:OAuth/initiate?oauth_token=e76bf74ff77abd1e1548ad6b55c94eec&' +
+    //     'oauth_token_secret=a0a7d0680d90321bcd41926e0ae7d5bb6b4c7e70').on('response', function (response) {
+    //     console.log(response);
+    // });
 
 };
 

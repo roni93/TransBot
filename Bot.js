@@ -1,11 +1,17 @@
 //-----------CONST-------------//
+"use strict";
+
 const DELAY = 3600000;
 const CLEAR_SESSION = 300000;
 
 const mediaWikiAPI = require("./MediaWikiAPI.js");
+const langApi = require("./languageApi");
+const OauthApi = require("./Oauth.js");
 const tgFancyBot = require("tgfancy");
-//const sqlite3 = require("sqlite3").verbose();
-//const db = new sqlite3.Database("db/telegram-bot.db");
+
+const sqlite3 = require("sqlite3").verbose();
+const db = new sqlite3.Database("db/telegram-bot.db");
+
 
 const START_MODE = "start";
 const LANG_MODE = "language";
@@ -21,20 +27,22 @@ setInterval(cleaRegistered, DELAY); //clears the registered users
 
 function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
+
     let user = getUser(tgMsg);
 
-    if (user.state === LANG_MODE) {
-        setLanguage(tgMsg, user);
-    }
-    if (user.state === TRANS_MODE) {
-        trans(user, tgMsg);
-    }
-    if (user.state === RESPONSE_MODE) {
-        user.state = TRANS_MODE;
-        publishTrans(user, tgMsg);
+    if (user !== undefined) {
 
+        if (user.state === LANG_SELECTED_MODE) {
+            setLanguage(tgMsg, user);
+        }
+        if (user.state === TRANS_MODE) {
+            trans(user, tgMsg);
+        }
+        if (user.state === RESPONSE_MODE) {
+            user.state = TRANS_MODE;
+            publishTrans(user, tgMsg);
+        }
     }
-
 }
 
 
@@ -42,22 +50,21 @@ function publishTrans(user, tgMsg) {
 
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-    console.log(text);
 
-    // TODO: Now it logs in every single time.
     // It really should try to reuse the login sessions.
-    mediaWikiAPI.login("RoniTransBot", "12345678", () => {
-        // mediaWikiAPI.addTranslation(
-        //
-        //     targetMwMessage.title, text,
-        //     "Made with Telegram Bot",
-        //     () => {
-        //        // storePublishingTgMessage(tgMsg, targetMwMessage);
-        //     }
-        // );
-        user.publishingTgMessages[targetMwMessage]=text;
-        user.currentMwMessageIndex++;
-    });
+    // mediaWikiAPI.addTranslation(
+    //     targetMwMessage.title,
+    //     text,
+    //     "Made with Telegram Bot",
+    //     () => {
+    //
+    //
+    //         storePublishingTgMessage(tgMsg, targetMwMessage);
+    //     }
+    // );
+    user.publishingTgMessages[targetMwMessage] = text;
+    user.currentMwMessageIndex++;
+
 }
 
 tgBot.on("callback_query", (tgMsg) => {
@@ -66,35 +73,36 @@ tgBot.on("callback_query", (tgMsg) => {
     if (tgMsg.data === "help") {
         helpFunction(tgMsg);
     }
-    if (user.state === START_MODE) {
-        user.state = LANG_MODE;
+    if (tgMsg.data === 'set-language') {
+
         tgBot.sendMessage(user.id, "Please type your language:");
+        user.state = LANG_SELECTED_MODE;
     }
-    if (user.state === LANG_SELECTED_MODE) {
+    if (user.state === LANG_MODE) {
         langSelected(user, tgMsg, true);
     }
     if (user.state === TRANS_MODE && tgMsg.data === "start-trans") {
         trans(user, tgMsg)
     }
     if (user.state === RESPONSE_MODE && tgMsg.data === "doc") {
-       showDocumentation(user);
+        showDocumentation(user);
     }
     if (user.state === RESPONSE_MODE && tgMsg.data === "skip") {
-        skipMsg(user,tgMsg);
+        skipMsg(user, tgMsg);
     }
     if (user.state === RESPONSE_MODE && tgMsg.data === "similar") {
         showAndCacheSimilar(user);
     }
 });
 
+/**skips to the next message**/
 function skipMsg(user, tgMsg) {
     user.skippedMrddages.push(user.loadedMwMessages[user.currentMwMessageIndex]);
     user.currentMwMessageIndex++;
-    trans(user,tgMsg);
-
+    trans(user, tgMsg);
 }
 
-function  showDocumentation(user) {
+function showDocumentation(user) {
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     const title = targetMwMessage.title;
     mediaWikiAPI.getDocumentation(title, (documentation) => {
@@ -118,6 +126,7 @@ function breakPoint(tgMsg, user, flag) {
         tgBot.sendMessage(user.id, "for help in any moment please type '/help', or press now", options);
     }
     else {
+
         let options = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [
@@ -129,40 +138,48 @@ function breakPoint(tgMsg, user, flag) {
     }
 }
 
-function setLanguage(tgMsg, user) {
-    let text = tgMsg.text;
-    let checkLang = function (text, callback) {
-        mediaWikiAPI.languageSearch(text, function (arg) {
-            callback(arg);
-        });
-    };
-    checkLang(text, function (arg) {
-        let setLang = JSON.parse(JSON.stringify(arg.languagesearch));
-        if (arg.languagesearch === []) {
-        }
-        else {
-            user.fullLang = arg.languagesearch;
+function setLanguage(tgMsg) {
 
-            if (Object.keys(arg.languagesearch).length === 1) {
-                user.state = LANG_SELECTED_MODE;
-                user.lang = Object.keys(arg.languagesearch)[0];
-                langSelected(user, tgMsg, false);
+    let user = registeredUsers[tgMsg.from.id];
+    if (user !== undefined) {
+
+        let text = tgMsg.text;
+        let checkLang = function (text, callback) {
+            mediaWikiAPI.languageSearch(text, function (arg) {
+                callback(arg);
+            });
+        };
+        checkLang(text, function (arg) {
+            let setLang = JSON.parse(JSON.stringify(arg.languagesearch));
+
+            if (arg.languagesearch.length === 0) {
+                tgBot.sendMessage(user.id, "Please type your language:");
             }
             else {
-                const inlineKeyboard = [];
-                for (let key in setLang)
-                    inlineKeyboard.push([{text: setLang[key], callback_data: key}]);
 
-                const tgMsgOptions = {
-                    reply_markup: JSON.stringify({
-                        inline_keyboard: inlineKeyboard
-                    })
-                };
-                user.state = LANG_SELECTED_MODE;
-                tgBot.sendMessage(user.id, "please select your language:", tgMsgOptions);
+                user.fullLang = arg.languagesearch;
+                if (Object.keys(arg.languagesearch).length === 1) {
+                    user.state = LANG_SELECTED_MODE;
+                    user.lang = Object.keys(arg.languagesearch)[0];
+                    langSelected(user, tgMsg, false);
+                }
+                else {
+                    const inlineKeyboard = [];
+                    for (let key in setLang)
+                        inlineKeyboard.push([{text: setLang[key], callback_data: key}]);
+
+                    const tgMsgOptions = {
+                        reply_markup: JSON.stringify({
+                            inline_keyboard: inlineKeyboard
+                        })
+                    };
+                    user.state = LANG_MODE;
+                    tgBot.sendMessage(user.id, "please select your language:", tgMsgOptions);
+                }
+
             }
-        }
-    })
+        })
+    }
 }
 
 
@@ -180,11 +197,99 @@ function validTgMessage(tgMsg) {
 function getUser(tgMsg) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
-        user = initUser(tgMsg);
-        tgBot.sendMessage(user.id, "Welcome " + user.firstName + "!");
-        newUser(user);
+        let user = initUser(tgMsg);
+        registeredUsers[user.id] = user;
+        user = loadUserFromDbByTgMsg(tgMsg, user, () => {
+            initNewUserLang(tgMsg, user, (language) => {
+                tgBot.sendMessage(user.id, "Your language set to " + language[1]);
+                user.lang = language[0];
+                newUserBot(tgMsg, user);
+            });
+        });
+
     }
     return user;
+}
+
+function initNewUserLang(tgMsg, user, cb) {
+    const langCodeTgMsg = tgMsg.from.language_code;
+
+    let language = langApi.findLang(langCodeTgMsg);
+    //the case we know the conversion
+    if (language) {
+        cb(language);
+    }
+    else { //the user will type and choose is language
+        user.state = LANG_SELECTED_MODE;
+        tgBot.sendMessage(user.id, "Please type your language:");
+    }
+}
+
+function newUserBot(tgMsg, user) {
+
+    //should be i18n
+    tgBot.sendMessage(user.id, "If it's not, please type '/help' for for further instruction");
+
+    const url = OauthApi.OauthLogIn((signUrl) => {
+        const tgMsgOptions = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
+            })
+        };
+        tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
+
+    });
+    addUserToDbByTgMsg(tgMsg, user.lang, "1");
+}
+
+function langSelected(user, tgMsg, flag) {
+
+    if (flag)
+        user.lang = tgMsg.data;
+    tgBot.sendMessage(user.id, "Your language set to " + user.fullLang[user.lang]);
+    user.state = TRANS_MODE;
+    newUserBot(tgMsg, user);
+}
+
+function loadUserFromDbByTgMsg(tgMsg, user, cb) {
+
+    const userID = user.id;
+    const selectString = `SELECT * FROM user WHERE user_telegram_id = '${userID}'`;
+    registeredUsers[user.id] = user;
+
+    db.all(selectString, (error, rows) => {
+        if (error !== null) {
+            console.log(`Loading user ${userID} failed: ${error}`);
+            return;
+        }
+
+        if (rows.length === 0) {
+            cb();
+            return;
+        }
+        if (rows.length === 1) {
+            const insertStmtStr = "SELECT user_language FROM user WHERE user_telegram_id=" + userID + ";";
+            db.all(insertStmtStr, (error, rows) => {
+                if (error !== null)
+                    return;
+                user.lang = rows[0].user_language;
+                user.state = TRANS_MODE;
+                breakPoint(tgMsg, user, false);
+                return user;
+            });
+        }
+    });
+}
+
+function addUserToDbByTgMsg(tgMsg, lang, token) {
+    const userID = tgMsg.from.id;
+    const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, user_oauth_secret) VALUES 
+    (${userID},${JSON.stringify(lang)},${JSON.stringify(token)});`;
+    db.run(insertStmtStr, (error) => {
+        if (error !== null) {
+            console.log(`Adding user ${userID} to the database failed: ${error}`);
+        }
+    });
 }
 
 function initUser(tgMsg) {
@@ -192,7 +297,6 @@ function initUser(tgMsg) {
         id: tgMsg.from.id,
         firstName: tgMsg.from.first_name,
         lang: tgMsg.from.language_code,
-        fullLang: "",
         state: START_MODE,
         currentMwMessageIndex: 0,
         skippedMrddages: [],
@@ -202,66 +306,55 @@ function initUser(tgMsg) {
     };
 }
 
-//register the user into to db if needed
-function newUser(user) {
-    registeredUsers[user.id] = user;
-
-    var options = {
-        reply_markup: JSON.stringify({
-            inline_keyboard: [[{text: 'Set language', callback_data: 'change-language'}]]
-        })
-    };
-    tgBot.sendMessage(user.id, "What would you like to do?", options);
-}
 
 function showUnTrans(user, tgMsg) {
     let targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+    console.log(targetMwMessage.definition);
     if (targetMwMessage === undefined) {
         breakPoint(tgMsg, user, false);
         // TODO: Show the welcome menu instead
         return;
     }
-
+    console.log(targetMwMessage.title);
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
         targetMwMessage.translationMemory = translationMemory;
 
         if (targetMwMessage.translationMemory.length === 0) {
-            console.log(user.id, `No translation memory was found for "${targetMwMessage.title}"`
-            );
+            //console.log(user.id, `No translation memory was found for "${targetMwMessage.title}"`);
         }
         const inlineKeyboard = [];
-
 
         inlineKeyboard.push([{text: "Documentation", callback_data: "doc"}, {
             text: "Skip message",
             callback_data: "skip"
         }, {text: "Similar message", callback_data: "similar"}]);
         const tgMsgOptions = {
-            reply_markup: JSON.stringify({
-                inline_keyboard: inlineKeyboard
-            })
+            reply_markup: JSON.stringify({inline_keyboard: inlineKeyboard}),
+            disable_web_page_preview: true,
+            parse_mode: "html"
         };
-
-        tgBot.sendMessage(
-            user.id,
-            targetMwMessage.definition,
-            tgMsgOptions
-        );
         if (targetMwMessage.translation !== null) {
-            tgBot.sendMessage(user.id, "Current translation: " + targetMwMessage.translation);
+            tgBot.sendMessage(user.id, targetMwMessage.definition, {disable_web_page_preview: true});
+            tgBot.sendMessage(user.id, "<b>Current translation: </b>" + targetMwMessage.translation, tgMsgOptions);
+        }
+        else {
+            tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
         }
         user.state = RESPONSE_MODE;
     });
 }
 
+
+
 function trans(user, tgMsg) {
-    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0){
+    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
         loadUntranslated(user, (loadedMwMessages) => {
 
             user.loadedMwMessages = loadedMwMessages;
             showUnTrans(user, tgMsg);
         });
-    console.log("load")}
+        console.log("load")
+    }
     else {
         showUnTrans(user, tgMsg);
     }
@@ -283,23 +376,13 @@ function loadUntranslated(user, cb) {
 }
 
 
-
-function langSelected(user, tgMsg, flag) {
-
-    if (flag)
-        user.lang = tgMsg.data;
-    tgBot.sendMessage(user.id, "Your language set to " + user.fullLang[user.lang]);
-    user.state = TRANS_MODE;
-    breakPoint(tgMsg, user, false);
-}
-
 function showAndCacheSimilar(user) {
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     const title = targetMwMessage.title;
 
     if (user.loadedTranslationMemory[targetMwMessage.title] !== undefined) {
         const ttmCache = user.loadedTranslationMemory[targetMwMessage.title];
-        for (i = 0; i < ttmCache.length; i++) {
+        for (let i = 0; i < ttmCache.length; i++) {
             tgBot.sendMessage(user.id, ttmCache[i]);
         }
     }
