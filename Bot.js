@@ -18,6 +18,7 @@ const LANG_MODE = "language";
 const LANG_SELECTED_MODE = "langSelected";
 const TRANS_MODE = "translate";
 const RESPONSE_MODE = "waitForTrans";
+const TOKEN_MODE = "waitForToken";
 
 const tgBot = new tgFancyBot('375437667:AAHzCxvO7LZnHPb6YNQTZVgrgLbjq5Ly0JE', {polling: true});
 
@@ -26,6 +27,7 @@ let registeredUsers = {};
 setInterval(cleaRegistered, DELAY); //clears the registered users
 
 function processTgMessage(tgMsg) {
+    console.log(tgMsg);
     setTimeout(TimeOut, CLEAR_SESSION);
 
     let user = getUser(tgMsg);
@@ -199,14 +201,13 @@ function getUser(tgMsg) {
     if (user === undefined) {
         let user = initUser(tgMsg);
         registeredUsers[user.id] = user;
-        user = loadUserFromDbByTgMsg(tgMsg, user, () => {
+        loadUserFromDbByTgMsg(tgMsg, user, () => {
             initNewUserLang(tgMsg, user, (language) => {
                 tgBot.sendMessage(user.id, "Your language set to " + language[1]);
                 user.lang = language[0];
                 newUserBot(tgMsg, user);
             });
         });
-
     }
     return user;
 }
@@ -229,16 +230,16 @@ function newUserBot(tgMsg, user) {
 
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type '/help' for for further instruction");
-
-    const url = OauthApi.OauthLogIn((signUrl) => {
-        const tgMsgOptions = {
-            reply_markup: JSON.stringify({
-                inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
-            })
-        };
-        tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
-
-    });
+    user.state = TOKEN_MODE;
+    // const url = OauthApi.OauthLogIn((signUrl) => {
+    //     const tgMsgOptions = {
+    //         reply_markup: JSON.stringify({
+    //             inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
+    //         })
+    //     };
+    //     tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
+    //
+    // });
     addUserToDbByTgMsg(tgMsg, user.lang, "1");
 }
 
@@ -309,7 +310,6 @@ function initUser(tgMsg) {
 
 function showUnTrans(user, tgMsg) {
     let targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-    console.log(targetMwMessage.definition);
     if (targetMwMessage === undefined) {
         breakPoint(tgMsg, user, false);
         // TODO: Show the welcome menu instead
@@ -343,7 +343,6 @@ function showUnTrans(user, tgMsg) {
         user.state = RESPONSE_MODE;
     });
 }
-
 
 
 function trans(user, tgMsg) {
@@ -415,7 +414,18 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
     user.loadedTranslationMemory[title][i] = text;
 }
 
+function foo(tgMsg) {
+    let user = registeredUsers[tgMsg.from.id];
+    if (user !== undefined) {
+        if(user.state ===TOKEN_MODE){
+            console.log("FDFD")
+
+        }
+    }
+}
+
 tgBot.onText(/.*/, processTgMessage);
+tgBot.onText(/start/, foo);
 tgBot.onText(/help/, helpFunction);
 
 
