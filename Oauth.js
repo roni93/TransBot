@@ -1,9 +1,8 @@
 "use strict";
 
-const CONSUMER_KEY = "e76bf74ff77abd1e1548ad6b55c94eec";
-const CONSUMER_SECRET = "a0a7d0680d90321bcd41926e0ae7d5bb6b4c7e70";
+const CONSUMER_KEY = "8ecb73f3bdff33eca46646b15282f1b9";
+const CONSUMER_SECRET = "09582f9332f5e849110c6616b82464275124d744";
 const url = "https://translatewiki.net/w/index.php?title=Special:OAuth/initiate";
-const opn = require('opn');
 
 const request = require("request").defaults({
     jar: true
@@ -25,8 +24,9 @@ exports.OauthLogIn = function (cb) {
         // step 2
         const req_data = qs.parse(body);
         const uri = 'https://translatewiki.net/w/index.php?title=Special:OAuth/authorize'
-            + '&' + qs.stringify({oauth_token: req_data.oauth_token, oauth_consumer_key: CONSUMER_KEY})
+            + '&' + qs.stringify({oauth_token: req_data.oauth_token, oauth_consumer_key: CONSUMER_KEY});
         // redirect the user to the authorize uri
+
         return cb(uri);
 
         // step 3
@@ -40,7 +40,7 @@ exports.OauthLogIn = function (cb) {
             token_secret: req_data.oauth_token_secret,
             verifier: auth_data.oauth_verifier
         };
-        // console.log(oauth_edit)
+
         const apiUrl = 'https://translatewiki.net/w/api.php';
        // return uri;
         request.post({

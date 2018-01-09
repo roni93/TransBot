@@ -1,8 +1,7 @@
 
 
 const fs = require('fs');
-let convertLang = {'he-IL':['he','עברית'], "iw-IL":['he','עברית']};
-//let convertLang = { };
+let convertLang = {'he-IL':['he','עברית'], "iw-IL":['he','עברית'], 'en':['en','English']};
 
 
 exports.findLang = function (string) {
