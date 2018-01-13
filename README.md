@@ -5,7 +5,7 @@ This is a Node.js service that can fetch untranslated messages from translatewik
 Coding conventions
 See CONTRIBUTING.md.
 
-License
+# License
 Copyright (C) 2016–2017 Roni Zelenchuk, Anna derzaev
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
