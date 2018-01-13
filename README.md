@@ -6,7 +6,7 @@ Coding conventions
 See CONTRIBUTING.md.
 
 # License
-Copyright (C) 2016–2017 Roni Zelenchuk, Anna derzaev
+Copyright (C) 2016–2018 Roni Zelenchuk - roni.zhelenchuk@mail.huji.ac.il , Anna derzaev - anna.derzaev@mail.huji.ac.il
 
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
 
