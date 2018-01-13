@@ -1,0 +1,8 @@
+{
+  "name": "mediawiki-telegram-bot-server",
+  "version": "0.0.1",
+  "dependencies": {
+    "express" : "4.15.3"
+  },
+  "author": "Anna Derzaev"
+}
