@@ -5,6 +5,8 @@ const request = require("request").defaults({
 });
 
 const apiUrl = "https://translatewiki.net/w/api.php";
+const bot = require("nodemw");
+
 
 exports.getUntranslatedMessages = function (languageCode, cb) {
     request.post({
@@ -28,88 +30,77 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
 };
 
 
-
-exports.login = function (username, password, cb) {
+//
+// exports.login = function (username, password, cb) {
+//     request.post({
+//             url: apiUrl,
+//             form: {
+//                 action: "query",
+//                 format: "json",
+//                 prop: "",
+//                 meta: "tokens",
+//                 type: "login"
+//             }
+//         },
+//         (error, response, body) => {
+//             console.log("Token request over");
+//
+//             if (error || response.statusCode !== 200) {
+//                 console.log("Error getting token");
+//                 console.log(`statusCode: ${response.statusCode}`);
+//                 console.log(`error: ${error}`);
+//
+//                 return;
+//             }
+//
+//             console.log(`Got MediaWiki login token: ${body}`);
+//
+//             body = JSON.parse(body);
+//             const mwLoginToken = body.query.tokens.logintoken;
+//             console.log("Trying to authenticate");
+//             request.post({
+//                     url: apiUrl,
+//                     form: {
+//                         action: "login",
+//                         format: "json",
+//                         lgname: username,
+//                         lgpassword: password,
+//                         lgtoken: mwLoginToken
+//                     }
+//                 },
+//                 (error, response, body) => {
+//                     if (error || response.statusCode !== 200) {
+//                         console.log("Error logging in");
+//                         console.log(`statusCode: ${response.statusCode}`);
+//                         console.log(`error: ${error}`);
+//
+//                         return;
+//                     }
+//
+//                     const res = JSON.parse(body);
+//
+//                     if (cb) {
+//                         if (res.login.result === "Failed") {
+//                             cb(res.login.reason);
+//                         } else {
+//                             console.log("Successfully logged in!");
+//                             cb();
+//                         }
+//                     }
+//                 }
+//             );
+//         }
+//     );
+// };
+exports.addTranslation = function(title, translation, summary, cb) {
     request.post({
             url: apiUrl,
-            form: {
-                action: "query",
-                format: "json",
-                prop: "",
-                meta: "tokens",
-                type: "login"
-            }
-        },
-        (error, response, body) => {
-            console.log("Token request over");
-
-            if (error || response.statusCode !== 200) {
-                console.log("Error getting token");
-                console.log(`statusCode: ${response.statusCode}`);
-                console.log(`error: ${error}`);
-
-                return;
-            }
-
-            console.log(`Got MediaWiki login token: ${body}`);
-
-            body = JSON.parse(body);
-            const mwLoginToken = body.query.tokens.logintoken;
-            console.log("Trying to authenticate");
-            request.post({
-                    url: apiUrl,
-                    form: {
-                        action: "login",
-                        format: "json",
-                        lgname: username,
-                        lgpassword: password,
-                        lgtoken: mwLoginToken
-                    }
-                },
-                (error, response, body) => {
-                    if (error || response.statusCode !== 200) {
-                        console.log("Error logging in");
-                        console.log(`statusCode: ${response.statusCode}`);
-                        console.log(`error: ${error}`);
-
-                        return;
-                    }
-
-                    const res = JSON.parse(body);
-
-                    if (cb) {
-                        if (res.login.result === "Failed") {
-                            cb(res.login.reason);
-                        } else {
-                            console.log("Successfully logged in!");
-                            cb();
-                        }
-                    }
-                }
-            );
-        }
-    );
-};
-
-exports.addTranslation = function (title, translation, summary, cb) {
-
-    const oauth_edit = {
-        consumer_key: "e76bf74ff77abd1e1548ad6b55c94eec",
-        consumer_secret: "a0a7d0680d90321bcd41926e0ae7d5bb6b4c7e70",
-        //token: auth_data.oauth_token,
-        //token_secret: req_data.oauth_token_secret,
-        verifier: "3b8d8050417c9dd7ee065e09acca4ba1"
-    };
-    request.post({
-            url: apiUrl,
-            oauth: oauth_edit,
             form: {
                 action: "query",
                 format: "json",
                 meta: "tokens",
                 type: "csrf"
-            }
-        },
+            } },
         (error, response, body) => {
             console.log("Edit token request over");
 
@@ -117,13 +108,15 @@ exports.addTranslation = function (title, translation, summary, cb) {
                 console.log("Error getting edit token");
                 console.log(`statusCode: ${response.statusCode}`);
                 console.log(`error: ${error}`);
+
                 return;
             }
 
             body = JSON.parse(body);
-            console.log(body);
+
             const mwEditToken = body.query.tokens.csrftoken;
             console.log(`Got edit token ${mwEditToken}`);
+
             request.post({
                     url: apiUrl,
                     form: {
@@ -134,8 +127,7 @@ exports.addTranslation = function (title, translation, summary, cb) {
                         summary,
                         tags: "TelegramBot",
                         token: mwEditToken
-                    }
-                },
+                    } },
                 (error, response, body) => {
                     console.log("Edit request over");
 
@@ -143,9 +135,12 @@ exports.addTranslation = function (title, translation, summary, cb) {
                         console.log("Error editing");
                         console.log(`statusCode: ${response.statusCode}`);
                         console.log(`error: ${error}`);
+
                         return;
                     }
+
                     console.log("Translation published");
+
                     cb();
                 });
         }

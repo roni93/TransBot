@@ -18,6 +18,7 @@ const LANG_MODE = "language";
 const LANG_SELECTED_MODE = "langSelected";
 const RESPONSE_MODE = "waitForTranslation";
 const READY_MODE = "readyToTrans";
+const TOKEN_MODE = "waitforToken";
 
 const tgBot = new tgFancyBot('375437667:AAHzCxvO7LZnHPb6YNQTZVgrgLbjq5Ly0JE', {polling: true});
 
@@ -26,6 +27,7 @@ let registeredUsers = {};
 setInterval(cleaRegistered, DELAY); //clears the registered users
 
 function processTgMessage(tgMsg) {
+    console.log(tgMsg)
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         console.log(user)
@@ -214,19 +216,19 @@ function registerToDB(tgMsg, user) {
 
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type '/help' for for further instruction");
-    // const url = OauthApi.OauthLogIn((signUrl) => {
-    //     const tgMsgOptions = {
-    //         reply_markup: JSON.stringify({
-    //             inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
-    //         })
-    //     };
-    //     tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
-    //
-    // });
 
-    //Adding the new user to the DB
-    addUserToDbByTgMsg(tgMsg, user.lang, "1");
-    user.state = READY_MODE;
+    const url = OauthApi.OauthLogIn((signUrl) => {
+        const tgMsgOptions = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
+            })
+        };
+        tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
+
+    });
+
+
+    user.state =TOKEN_MODE ;
 
 
 }
@@ -412,25 +414,34 @@ function publishTrans(user, tgMsg) {
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
 
-    // mediaWikiAPI.addTranslation(
-    //     targetMwMessage.title,
-    //     text,
-    //     "Made with Telegram Bot",
-    //     () => {
-    //
-    //
-    //         storePublishingTgMessage(tgMsg, targetMwMessage);
-    //     }
-    // );
+    mediaWikiAPI.addTranslation(
+        targetMwMessage.title,
+        text,
+        "Made with Telegram Bot",
+        () => {
+            // storePublishingTgMessage(tgMsg, targetMwMessage);
+        }
+    );
 
     user.publishingTgMessages[targetMwMessage.title] = text;
     user.currentMwMessageIndex++;
 
     trans(user, tgMsg);
 }
-
+function foo(tgMsg) {
+    getUser(tgMsg, (user) => {
+        if (user !== undefined) {
+            if (user.state === TOKEN_MODE){
+                addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
+                user.state = READY_MODE;
+            }
+        }
+    });
+}
+tgBot.onText(/start/, foo);
 
 tgBot.onText(/.*/, processTgMessage);
+
 tgBot.onText(/help/, helpFunction);
 
 

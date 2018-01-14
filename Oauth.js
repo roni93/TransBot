@@ -1,7 +1,7 @@
 "use strict";
 
-const CONSUMER_KEY = "8ecb73f3bdff33eca46646b15282f1b9";
-const CONSUMER_SECRET = "09582f9332f5e849110c6616b82464275124d744";
+const CONSUMER_KEY = "3b92fd434ce0645f9dfa053260dd22ee";
+const CONSUMER_SECRET = "2d8c2997376dd22064aea1e24aadb5b368127b5b";
 const url = "https://translatewiki.net/w/index.php?title=Special:OAuth/initiate";
 
 const request = require("request").defaults({
@@ -27,12 +27,13 @@ exports.OauthLogIn = function (cb) {
             + '&' + qs.stringify({oauth_token: req_data.oauth_token, oauth_consumer_key: CONSUMER_KEY});
         // redirect the user to the authorize uri
 
-        return cb(uri);
-
+        cb(uri);
+        return;
         // step 3
         // after the user is redirected back to your server
-
+        console.log(body)
         const auth_data = qs.parse(body);
+
         const oauth_edit = {
             consumer_key: CONSUMER_KEY,
             consumer_secret: CONSUMER_SECRET,
@@ -63,12 +64,11 @@ exports.OauthLogIn = function (cb) {
                     return;
                 }
 
-                const title = "User:RoniTransBot/bottest";
-                const translation = new Date().toString();
-                const summary = "le summary";
-
-                body = JSON.parse(body);
                 console.log(body);
+                body = JSON.parse(body);
+
+                return;
+
 
                 const mwEditToken = body.query.tokens.csrftoken;
                 console.log(`Got edit token ${mwEditToken}`);
