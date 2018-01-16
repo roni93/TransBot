@@ -18,7 +18,8 @@ const LANG_MODE = "language";
 const LANG_SELECTED_MODE = "langSelected";
 const RESPONSE_MODE = "waitForTranslation";
 const READY_MODE = "readyToTrans";
-const TOKEN_MODE = "waitforToken";
+const VERIFIER_MODE = "waitForVerifier";
+const TOKEN_MODE = "waitForToken";
 
 const tgBot = new tgFancyBot('375437667:AAHzCxvO7LZnHPb6YNQTZVgrgLbjq5Ly0JE', {polling: true});
 
@@ -88,7 +89,7 @@ function getUser(tgMsg, cb) {
 
                 user.lang = language[0];
                 registerToDB(tgMsg, user);
-                cb(user)
+                cb(user);
                 //breakPoint(tgMsg,user,true)
 
             });
@@ -217,20 +218,17 @@ function registerToDB(tgMsg, user) {
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type '/help' for for further instruction");
 
-    const url = OauthApi.OauthLogIn((signUrl) => {
+    const url = OauthApi.OauthLogIn((signUrl, req_data) => {
+        registeredUsers[user.id].req_data = req_data;
         const tgMsgOptions = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
             })
         };
+        user.state =VERIFIER_MODE ;
         tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
 
     });
-
-
-    user.state =TOKEN_MODE ;
-
-
 }
 
 function langSelected(user, tgMsg, flag) {
@@ -428,12 +426,14 @@ function publishTrans(user, tgMsg) {
 
     trans(user, tgMsg);
 }
+
 function foo(tgMsg) {
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-            if (user.state === TOKEN_MODE){
+            if (user.state === VERIFIER_MODE){
                 addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
                 user.state = READY_MODE;
+                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data);
             }
         }
     });
