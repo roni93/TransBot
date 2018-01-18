@@ -28,10 +28,8 @@ let registeredUsers = {};
 setInterval(cleaRegistered, DELAY); //clears the registered users
 
 function processTgMessage(tgMsg) {
-    console.log(tgMsg)
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
-        console.log(user)
         if (user !== undefined) {
 
             if (user.state === LANG_SELECTED_MODE) {
@@ -273,8 +271,8 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
 
 function addUserToDbByTgMsg(tgMsg, lang, token) {
     const userID = tgMsg.from.id;
-    const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, user_oauth_secret) VALUES 
-    (${userID},${JSON.stringify(lang)},${JSON.stringify(token)});`;
+    const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, verifier, oauth_token, oauth_token_secret) VALUES 
+    (${userID},${JSON.stringify(lang)},${JSON.stringify(token)},1,1);`;
     db.run(insertStmtStr, (error) => {
         if (error !== null) {
             console.log(`Adding user ${userID} to the database failed: ${error}`);
@@ -412,14 +410,26 @@ function publishTrans(user, tgMsg) {
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
 
-    mediaWikiAPI.addTranslation(
-        targetMwMessage.title,
-        text,
-        "Made with Telegram Bot",
-        () => {
-            // storePublishingTgMessage(tgMsg, targetMwMessage);
-        }
-    );
+    mediaWikiAPI.login(user,() => {
+        mediaWikiAPI.addTranslation(
+            targetMwMessage.title,
+            text,
+            "Made with Telegram Bot",
+            () => {
+                debug(userID, "Translation published", 1);
+
+                storePublishingTgMessage(tgMsg, targetMwMessage);
+            }
+        );
+    });
+    // mediaWikiAPI.addTranslation(
+    //     targetMwMessage.title,
+    //     text,
+    //     "Made with Telegram Bot",
+    //     () => {
+    //         // storePublishingTgMessage(tgMsg, targetMwMessage);
+    //     }
+    // );
 
     user.publishingTgMessages[targetMwMessage.title] = text;
     user.currentMwMessageIndex++;
@@ -432,8 +442,22 @@ function foo(tgMsg) {
         if (user !== undefined) {
             if (user.state === VERIFIER_MODE){
                 addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
+                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data,(perm_data)=>{
+                    user["oauth_token"] =  perm_data.oauth_token;
+                    user["oauth_token_secret"] =  perm_data.oauth_token_secret;
+
+                    const oauth_token0 = perm_data.oauth_token;
+                    const oauth_token_secret0 = perm_data.oauth_token_secret;
+                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)} ;`;
+                    db.run(insertStmtStr, (error) => {
+                        if (error !== null) {
+                            console.log(`updating user ${tgMsg.from.id} to the database failed: ${error}`);
+                        }
+                    });
+
+                });
                 user.state = READY_MODE;
-                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data);
+
             }
         }
     });

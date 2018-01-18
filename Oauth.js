@@ -42,7 +42,12 @@ exports.OauthLogIn = function (cb) {
     });
 };
 
-exports.OauthLogIn2 = function (verifier, req_data) {
+
+
+
+
+
+exports.OauthLogIn2 = function (verifier, req_data, cb) {
     // step 3
     // after the user is redirected back to your server
     // const userID = user_id;
@@ -75,9 +80,9 @@ exports.OauthLogIn2 = function (verifier, req_data) {
 
     request.get({url: url2, oauth: oauth}, function (e, r, body) {
         // ready to make signed requests on behalf of the user
-        var perm_data = qs.parse(body);
-        console.log("perm_date ", perm_data);
+        let perm_data = qs.parse(body);
 
+        cb(perm_data)
         //     , oauth =
         //         {
         //             consumer_key: CONSUMER_KEY

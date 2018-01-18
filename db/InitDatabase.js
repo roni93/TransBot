@@ -8,7 +8,9 @@ db.serialize(function() {
     const userColumns = [
         "user_telegram_id TEXT PRIMARY KEY",
         "user_language TEXT",
-        "user_oauth_secret TEXT",
+        "verifier TEXT",
+        "oauth_token TEXT",
+        "oauth_token_secret TEXT",
     ];
 
     const userColumnsClause = userColumns.join(", ");

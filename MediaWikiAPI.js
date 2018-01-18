@@ -5,7 +5,6 @@ const request = require("request").defaults({
 });
 
 const apiUrl = "https://translatewiki.net/w/api.php";
-const bot = require("nodemw");
 
 
 exports.getUntranslatedMessages = function (languageCode, cb) {
@@ -29,6 +28,73 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
     );
 };
 
+
+exports.login = function( user, cb) {
+    request.post({
+            url: apiUrl,
+            form: {
+                action: "query",
+                format: "json",
+                prop: "",
+                meta: "tokens",
+                type: "login"
+            } },
+        (error, response, body) => {
+            console.log("Token request over");
+
+            if (error || response.statusCode !== 200) {
+                console.log("Error getting token");
+                console.log(`statusCode: ${response.statusCode}`);
+                console.log(`error: ${error}`);
+
+                return;
+            }
+
+            console.log(`Got MediaWiki login token: ${body}`);
+
+            body = JSON.parse(body);
+
+            const mwLoginToken = body.query.tokens.logintoken;
+
+            console.log("Trying to authenticate");
+
+            const userID = "319611936";
+            const selectString = `SELECT user_oauth_secret FROM user WHERE user_telegram_id = '${userID}'`;
+
+
+            request.post({
+                    url: apiUrl,
+                    form: {
+                        action: "clientlogin",
+                        logincontinue: "1",
+                        state: "XYZ123",
+                        code: user.oauth_token,
+                        logintoken: mwLoginToken
+                    } },
+                (error, response, body) => {
+                    if (error || response.statusCode !== 200) {
+                        console.log("Error logging in");
+                        console.log(`statusCode: ${response.statusCode}`);
+                        console.log(`error: ${error}`);
+
+                        return;
+                    }
+                    // console.log(body);
+                    const res = JSON.parse(body);
+
+                    if (cb) {
+                        if (res.login.result === "Failed") {
+                            cb(res.login.reason);
+                        } else {
+                            console.log("Successfully logged in!");
+                            cb();
+                        }
+                    }
+                }
+            );
+        }
+    );
+};
 
 //
 // exports.login = function (username, password, cb) {
