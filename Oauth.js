@@ -9,6 +9,17 @@ const request = require("request").defaults({
 });
 
 const qs = require("querystring");
+const crypto  = require('crypto');
+const OAuth = require("oauth-1.0a");
+
+const auth = OAuth({
+    consumer: {key: CONSUMER_KEY, secret: CONSUMER_SECRET},
+    signature_method: 'HMAC-SHA1',
+    hash_function(base_string, key) {
+        return crypto.createHmac('sha1', key).update(base_string).digest('base64');
+    }
+});
+
 const oauth_initiate = {
     callback: "oob", // already registered
     consumer_key: CONSUMER_KEY,
@@ -19,26 +30,22 @@ const oauth_initiate = {
 // OAuth1.0 - 3-legged server side flow (Twitter example)
 // step 1
 exports.OauthLogIn = function (cb) {
-    request.get({url:url, oauth:oauth_initiate}, (e, r, body) => {
+    const request_data = {
+        url: url,
+        method: 'GET',
+        data: { oauth_callback: "oob"}
+    };
 
-        // step 2
+    request({
+        url: request_data.url,
+        method: request_data.method,
+        headers: auth.toHeader(auth.authorize(request_data))
+    }, function(error, response, body) {
         const req_data = qs.parse(body);
-        console.log("req data ", req_data);
-
-
         const uri = 'https://translatewiki.net/w/index.php?title=Special:OAuth/authorize'
             + '&' + qs.stringify({oauth_token: req_data.oauth_token, oauth_consumer_key: CONSUMER_KEY});
-        // redirect the user to the authorize uri
-
+        console.log(req_data);
         cb(uri, req_data);
-
-
-        // console.log("user state ", all_users[user_id].state);
-        // // TODO WAITTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-        // while (all_users[user_id].state !== "waitForToken") {}
-        // console.log("user state ", all_users[user_id].state);
-
-        // return;
     });
 };
 
@@ -68,37 +75,28 @@ exports.OauthLogIn2 = function (verifier, req_data, cb) {
         return;
     }
 
-    const oauth = {
-        consumer_key: CONSUMER_KEY,
-        consumer_secret: CONSUMER_SECRET,
-        token: req_data.oauth_token,
-        token_secret: req_data.oauth_token_secret,
-        verifier: verifier
-    };
-
     var url2 = 'https://translatewiki.net/w/index.php?title=Special:OAuth/token';
 
-    request.get({url: url2, oauth: oauth}, function (e, r, body) {
-        // ready to make signed requests on behalf of the user
-        let perm_data = qs.parse(body);
+    const request_data = {
+        url: url2,
+        method: 'GET',
+        data: {oauth_verifier: verifier}
+    };
 
+
+    const token = {
+        key: req_data.oauth_token,
+        secret: req_data.oauth_token_secret,
+    };
+
+    request({
+        url: request_data.url,
+        method: request_data.method,
+        headers: auth.toHeader(auth.authorize(request_data, token))
+    }, function(error, response, body) {
+        let perm_data = qs.parse(body);
+        console.log(perm_data);
         cb(perm_data)
-        //     , oauth =
-        //         {
-        //             consumer_key: CONSUMER_KEY
-        //             , consumer_secret: CONSUMER_SECRET
-        //             , token: perm_data.oauth_token
-        //             , token_secret: perm_data.oauth_token_secret
-        //         }
-        //     , url = 'https://api.twitter.com/1.1/users/show.json'
-        //     , qs =
-        //         {
-        //             screen_name: perm_data.screen_name
-        //             , user_id: perm_data.user_id
-        //         }
-        //     ;
-        // request.get({url: url, oauth: oauth, qs: qs, json: true}, function (e, r, user) {
-        //     console.log(user)
-        // });
     });
+
 };

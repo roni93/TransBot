@@ -27,6 +27,7 @@ let registeredUsers = {};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
 
+
 function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
@@ -410,18 +411,18 @@ function publishTrans(user, tgMsg) {
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
 
-    mediaWikiAPI.login(user,() => {
-        mediaWikiAPI.addTranslation(
+
+        mediaWikiAPI.addTranslation(user,
             targetMwMessage.title,
             text,
             "Made with Telegram Bot",
             () => {
-                debug(userID, "Translation published", 1);
+                // debug(userID, "Translation published", 1);
 
-                storePublishingTgMessage(tgMsg, targetMwMessage);
+                // storePublishingTgMessage(tgMsg, targetMwMessage);
             }
         );
-    });
+
     // mediaWikiAPI.addTranslation(
     //     targetMwMessage.title,
     //     text,
