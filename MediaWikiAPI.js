@@ -161,8 +161,8 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
 
 const crypto  = require('crypto');
 const OAuth = require("oauth-1.0a");
-const CONSUMER_KEY = "3b92fd434ce0645f9dfa053260dd22ee";
-const CONSUMER_SECRET = "2d8c2997376dd22064aea1e24aadb5b368127b5b";
+const CONSUMER_KEY = "47a716a9fca6845f7a734d31fcef9955";
+const CONSUMER_SECRET = "f26a6e8982db87f7e6d1dc0db481f98f89029d25";
 const auth = OAuth({
     consumer: {key: CONSUMER_KEY, secret: CONSUMER_SECRET},
     signature_method: 'HMAC-SHA1',
@@ -174,22 +174,26 @@ const auth = OAuth({
 
 exports.addTranslation = function(user, title, translation, summary, cb) {
 
-    const request_data = {
-        url: apiUrl + "?action=query&format=json&meta=tokens",
-        method: 'POST',
-        data: {}
-    };
-
     const token = {
         key: user.oauth_token,
         secret: user.oauth_token_secret
     };
 
+    const request_data = {
+        url: apiUrl + "?action=query&format=json&meta=tokens",
+        method: 'POST',
+        data: {}
+    };
+    const a = {a: 'b'};
+    console.log(a);
+
+    console.log("HEADER " + auth.toHeader(auth.authorize(request_data, token)));
+
     request({
         url: request_data.url,
         method: request_data.method,
-            form: request_data.data,
-            headers: auth.toHeader(auth.authorize(request_data, token))
+        form: request_data.data,
+        headers: auth.toHeader(auth.authorize(request_data, token))
     }, function(error, response, body) {
 
         console.log("Edit token request over");
@@ -225,7 +229,6 @@ exports.addTranslation = function(user, title, translation, summary, cb) {
                 console.log("Error editing");
                 console.log(`statusCode: ${response.statusCode}`);
                 console.log(`error: ${error}`);
-
                 return;
             }
 

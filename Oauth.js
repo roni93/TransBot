@@ -1,7 +1,7 @@
 "use strict";
 
-const CONSUMER_KEY = "3b92fd434ce0645f9dfa053260dd22ee";
-const CONSUMER_SECRET = "2d8c2997376dd22064aea1e24aadb5b368127b5b";
+const CONSUMER_KEY = "47a716a9fca6845f7a734d31fcef9955";
+const CONSUMER_SECRET = "f26a6e8982db87f7e6d1dc0db481f98f89029d25";
 const url = "https://translatewiki.net/w/index.php?title=Special:OAuth/initiate";
 
 const request = require("request").defaults({
@@ -50,10 +50,6 @@ exports.OauthLogIn = function (cb) {
 };
 
 
-
-
-
-
 exports.OauthLogIn2 = function (verifier, req_data, cb) {
     // step 3
     // after the user is redirected back to your server
@@ -100,3 +96,8 @@ exports.OauthLogIn2 = function (verifier, req_data, cb) {
     });
 
 };
+ //
+//Brian Wolff	2:29 PM
+//$wgGrantPermissions['editpage']['translate'] = true;
+//#mediawiki
+//irc://irc.freenode.net/mediawiki
