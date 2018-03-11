@@ -19,7 +19,9 @@
   ],
   "dependencies": {
     "jsonfile": "3.0.0",
+    "oauth-1.0a": "2.2.4",
     "opn": "^5.1.0",
+    "passport-mediawiki-oauth": "0.1.0",
     "querystring": "0.2.0",
     "request": "2.81.0",
     "tgfancy": "0.10.0",
