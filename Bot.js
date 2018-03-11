@@ -40,8 +40,8 @@ function processTgMessage(tgMsg) {
 
                 publishTrans(user, tgMsg);
             }
-            if(user.state === READY_MODE){
-                breakPoint(tgMsg,user,true)
+            if (user.state === READY_MODE) {
+                breakPoint(tgMsg, user, true)
             }
         }
     });
@@ -224,7 +224,7 @@ function registerToDB(tgMsg, user) {
                 inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
             })
         };
-        user.state =VERIFIER_MODE ;
+        user.state = VERIFIER_MODE;
         tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
 
     });
@@ -262,7 +262,7 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
                 if (error !== null)
                     return;
                 user.lang = rows[0].user_language;
-                user.state= READY_MODE
+                user.state = READY_MODE
                 breakPoint(tgMsg, user, false);
                 return user;
             });
@@ -304,6 +304,7 @@ function showUnTrans(user, tgMsg) {
         return;
     }
     console.log(targetMwMessage.title);
+    console.log()
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
 
         targetMwMessage.translationMemory = translationMemory;
@@ -320,16 +321,15 @@ function showUnTrans(user, tgMsg) {
         const tgMsgOptions = {
             reply_markup: JSON.stringify({inline_keyboard: inlineKeyboard}),
             disable_web_page_preview: true,
-            parse_mode: "html"
+            // parse_mode: "html"
         };
         if (targetMwMessage.translation !== null) {
-            tgBot.sendMessage(user.id, targetMwMessage.definition, {disable_web_page_preview: true});
+            tgBot.sendMessage(user.id, "`"+targetMwMessage.definition+"`", {parse_mode: "HTML", disable_web_page_preview: true});
             tgBot.sendMessage(user.id, "<b>Current translation: </b>" + targetMwMessage.translation, tgMsgOptions);
         }
         else {
-            tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
+            tgBot.sendMessage(user.id,  targetMwMessage.definition, tgMsgOptions);
         }
-
 
 
     });
@@ -406,22 +406,23 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
     }
     user.loadedTranslationMemory[title][i] = text;
 }
+
 function publishTrans(user, tgMsg) {
 
     const text = tgMsg.text;
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
 
 
-        mediaWikiAPI.addTranslation(user,
-            targetMwMessage.title,
-            text,
-            "Made with Telegram Bot",
-            () => {
-                // debug(userID, "Translation published", 1);
+    mediaWikiAPI.addTranslation(user,
+        targetMwMessage.title,
+        text,
+        "Made with Telegram Bot",
+        () => {
+            // debug(userID, "Translation published", 1);
 
-                // storePublishingTgMessage(tgMsg, targetMwMessage);
-            }
-        );
+            // storePublishingTgMessage(tgMsg, targetMwMessage);
+        }
+    );
 
     // mediaWikiAPI.addTranslation(
     //     targetMwMessage.title,
@@ -441,11 +442,11 @@ function publishTrans(user, tgMsg) {
 function foo(tgMsg) {
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-            if (user.state === VERIFIER_MODE){
+            if (user.state === VERIFIER_MODE) {
                 addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
-                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data,(perm_data)=>{
-                    user["oauth_token"] =  perm_data.oauth_token;
-                    user["oauth_token_secret"] =  perm_data.oauth_token_secret;
+                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
+                    user["oauth_token"] = perm_data.oauth_token;
+                    user["oauth_token_secret"] = perm_data.oauth_token_secret;
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
@@ -463,6 +464,7 @@ function foo(tgMsg) {
         }
     });
 }
+
 tgBot.onText(/start/, foo);
 
 tgBot.onText(/.*/, processTgMessage);
