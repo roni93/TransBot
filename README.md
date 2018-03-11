@@ -5,6 +5,16 @@ This is a Node.js service that can fetch untranslated messages from translatewik
 Coding conventions
 See CONTRIBUTING.md.
 
+# Setting up
+
+1. Run:
+
+```bash
+npm install
+cd db/
+node InitDatabase.js
+```
+
 # License
 Copyright (C) 2016–2018 Roni Zelenchuk - roni.zhelenchuk@mail.huji.ac.il , Anna Derzaev - anna.derzaev@mail.huji.ac.il
 
