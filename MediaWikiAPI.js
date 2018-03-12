@@ -91,7 +91,6 @@ exports.addTranslation = function (user, title, translation, summary, cb) {
                 headers: auth.toHeader(auth.authorize(request_data2, token))
             }, function (error, response, body) {
                 console.log("Edit request over");
-                console.log(response);
                 if (error || response.statusCode !== 200) {
                     console.log("Error editing");
                     console.log(`statusCode: ${response.statusCode}`);
@@ -99,14 +98,15 @@ exports.addTranslation = function (user, title, translation, summary, cb) {
                     return;
                 }
 
-                console.log("trans body " + body);
+
                 console.log("Translation published");
 
                 cb();
             });
         }
     );
-
+    // console.log("Translation published");
+    // cb();
 };
 
 exports.getDocumentation = function (title, cb) {
@@ -121,8 +121,6 @@ exports.getDocumentation = function (title, cb) {
         }, (error, response, body) => {
             const translationaids = JSON.parse(body);
 
-            console.log("translationaids, documentation:");
-            console.log(translationaids);
 
             // TODO: Handle the case that it doesn't exist, invalid, etc.
             cb(translationaids.helpers.documentation.value);
