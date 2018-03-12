@@ -30,7 +30,7 @@ function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-
+            console.log("sss")
             if (user.state === LANG_SELECTED_MODE) {
                 setLanguage(tgMsg, user);
             }
@@ -39,7 +39,7 @@ function processTgMessage(tgMsg) {
                 publishTrans(user, tgMsg, targetMwMessage);
             }
             if (user.state === READY_MODE) {
-                breakPoint(tgMsg, user, true)
+                helpFunction(tgMsg)
             }
         }
     });
@@ -55,6 +55,15 @@ tgBot.on("callback_query", (tgMsg) => {
     if (tgMsg.data === 'set-language') {
         tgBot.sendMessage(user.id, "Please type your language:");
         user.state = LANG_SELECTED_MODE;
+    }
+    if (tgMsg.data === "instructions") {
+        notifyUser(tgMsg,user)
+    }
+    if( tgMsg.data === "back-trans"){
+        trans(user, tgMsg)
+    }
+    if (user.state === VERIFIER_MODE && tgMsg.data === 'change-lang') {
+        initNewUserLang(tgMsg, user, () => {})
     }
     if (user.state === LANG_MODE) {
         langSelected(user, tgMsg, true);
@@ -72,6 +81,11 @@ tgBot.on("callback_query", (tgMsg) => {
         showAndCacheSimilar(user);
     }
 });
+
+function notifyUser(tgMsg,user) {
+    tgBot.sendMessage(user.id, "Some explanation...");
+    helpFunction(tgMsg)
+}
 
 function getUser(tgMsg, cb) {
     let user = registeredUsers[tgMsg.from.id];
@@ -159,7 +173,7 @@ function setLanguage(tgMsg) {
                 if (Object.keys(arg.languagesearch).length === 1) {
                     user.state = LANG_MODE;
                     user.lang = Object.keys(arg.languagesearch)[0];
-                    langApi.addNewLang(tgMsg,user.lang);
+                    langApi.addNewLang(tgMsg, user.lang);
                     langSelected(user, tgMsg, false);
                 }
                 else {
@@ -202,6 +216,7 @@ function initNewUserLang(tgMsg, user, cb) {
         cb(language);
     }
     else { //the user will type and choose is language
+
         user.state = LANG_SELECTED_MODE;
         tgBot.sendMessage(user.id, "Please type your language:");
     }
@@ -228,7 +243,7 @@ function registerToDB(tgMsg, user) {
 function langSelected(user, tgMsg, flag) {
 
     if (flag) {
-        langApi.addNewLang(tgMsg,user.lang);
+        langApi.addNewLang(tgMsg, user.lang);
         user.lang = tgMsg.data;
     }
     tgBot.sendMessage(user.id, "Your language set to " + user.fullLang[user.lang]);
@@ -301,7 +316,6 @@ function showUnTrans(user, tgMsg) {
         return;
     }
     console.log(targetMwMessage.title);
-    console.log()
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
 
         targetMwMessage.translationMemory = translationMemory;
@@ -321,11 +335,14 @@ function showUnTrans(user, tgMsg) {
             // parse_mode: "html"
         };
         if (targetMwMessage.translation !== null) {
-            tgBot.sendMessage(user.id, "`"+targetMwMessage.definition+"`", {parse_mode: "HTML", disable_web_page_preview: true});
+            tgBot.sendMessage(user.id, "`" + targetMwMessage.definition + "`", {
+                parse_mode: "HTML",
+                disable_web_page_preview: true
+            });
             tgBot.sendMessage(user.id, "<b>Current translation: </b>" + targetMwMessage.translation, tgMsgOptions);
         }
         else {
-            tgBot.sendMessage(user.id,  targetMwMessage.definition, tgMsgOptions);
+            tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
         }
 
 
@@ -417,17 +434,14 @@ function publishTrans(user, tgMsg, targetMwMessage) {
             trans(user, tgMsg);
         }
     );
-    console.log(user)
 }
 
 
-
 tgBot.on("edited_message", (tgMsg) => {
-    console.log("edited_message got tgMsg:");
-    console.log(tgMsg);
+
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-            publishTrans(user,tgMsg,user.translatedTgMessages[tgMsg.message_id])
+            publishTrans(user, tgMsg, user.translatedTgMessages[tgMsg.message_id])
 
         }
     });
@@ -450,24 +464,54 @@ function oauthLogin(tgMsg) {
                             console.log(`updating user ${tgMsg.from.id} to the database failed: ${error}`);
                         }
                     });
-
                 });
                 user.state = READY_MODE;
-
             }
         }
     });
 }
-
+tgBot.onText(/help/, helpFunction);
 tgBot.onText(/start/, oauthLogin);
 tgBot.onText(/.*/, processTgMessage);
-tgBot.onText(/help/, helpFunction);
+
 
 
 function helpFunction(tgMsg) {
     let user = registeredUsers[tgMsg.from.id];
-    tgBot.sendMessage(user.id, "HELP!!!");
-    breakPoint(tgMsg, user, true);
+    let tgMsgOptions = {};
+    if (user.state === VERIFIER_MODE) {
+        tgMsgOptions = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [
+                    [{text: 'Change my language', callback_data: 'change-lang'}, {
+                        text: 'Instructions',
+                        callback_data: 'instructions'
+                    }]
+                ]
+            })
+        };
+    }
+    else {
+        tgMsgOptions = {
+            reply_markup: JSON.stringify({
+                inline_keyboard: [
+                    [{
+                        text: 'Instructions',
+                        callback_data: 'instructions'
+                    },
+                        {
+                            text: 'Back to translate',
+                            callback_data: 'back-trans'
+                        }
+
+                    ]
+                ]
+            })
+        };
+    }
+    tgBot.sendMessage(user.id, "What you would like to do:", tgMsgOptions);
+
+
 }
 
 function TimeOut() {
