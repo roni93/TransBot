@@ -51,18 +51,6 @@ exports.OauthLogIn = function (cb) {
 
 
 exports.OauthLogIn2 = function (verifier, req_data, cb) {
-    // step 3
-    // after the user is redirected back to your server
-    // const userID = user_id;
-    // const selectString = `SELECT user_oauth_secret FROM user WHERE user_telegram_id = '${userID}'`;
-    //
-    // var verifier = db.all(selectString, (error, rows) => {
-    //     if (error !== null || rows.length!==1) {
-    //         console.log(`Loading user ${userID} failed: ${error}`);
-    //         return undefined;
-    //     }
-    //     return rows[0].user_oauth_secret;
-    // });
 
     console.log("verifier ", verifier);
 
@@ -71,7 +59,7 @@ exports.OauthLogIn2 = function (verifier, req_data, cb) {
         return;
     }
 
-    var url2 = 'https://translatewiki.net/w/index.php?title=Special:OAuth/token';
+    const url2 = 'https://translatewiki.net/w/index.php?title=Special:OAuth/token';
 
     const request_data = {
         url: url2,
@@ -96,8 +84,3 @@ exports.OauthLogIn2 = function (verifier, req_data, cb) {
     });
 
 };
- //
-//Brian Wolff	2:29 PM
-//$wgGrantPermissions['editpage']['translate'] = true;
-//#mediawiki
-//irc://irc.freenode.net/mediawiki
