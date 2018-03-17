@@ -11,6 +11,9 @@ db.serialize(function() {
         "verifier TEXT",
         "oauth_token TEXT",
         "oauth_token_secret TEXT",
+        "first_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+        "num_of_trans INTEGER DEFAULT 0"
     ];
 
     const userColumnsClause = userColumns.join(", ");

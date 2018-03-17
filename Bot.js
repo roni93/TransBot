@@ -7,6 +7,8 @@ const CLEAR_SESSION = 300000;
 const mediaWikiAPI = require("./MediaWikiAPI.js");
 const langApi = require("./languageApi");
 const OauthApi = require("./Oauth.js");
+const notification = require("./notification.js");
+
 const tgFancyBot = require("tgfancy");
 const jsonfile = require("jsonfile");
 
@@ -27,6 +29,7 @@ const tgBot = new tgFancyBot(config.token, {polling: true});
 let registeredUsers = {};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
+notification.turnOnNotification(tgBot);
 
 function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
@@ -274,6 +277,10 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
                 breakPoint(tgMsg, user, false);
                 return user;
             });
+            db.all("UPDATE user SET last_login = CURRENT_TIMESTAMP WHERE user_telegram_id = " + userID + ";", (error) => {
+                if (error !== null)
+                    return;
+            });
         }
     });
 }
@@ -330,17 +337,15 @@ function showUnTrans(user, tgMsg) {
 
         };
         if (targetMwMessage.translation !== null) {
-            tgBot.sendMessage(user.id, "`" + targetMwMessage.definition + "`", {
-                parse_mode: "HTML",
+            tgBot.sendMessage(user.id, targetMwMessage.definition, {
                 disable_web_page_preview: true
             });
-            tgBot.sendMessage(user.id, "Current translation: " + targetMwMessage.translation, tgMsgOptions);
+            tgBot.sendMessage(user.id, "*Current translation:*", {parse_mode: "Markdown"});
+            tgBot.sendMessage(user.id, targetMwMessage.translation, tgMsgOptions);
         }
         else {
             tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
         }
-
-
     });
 }
 
@@ -430,6 +435,17 @@ function publishTrans(user, tgMsg, targetMwMessage) {
         () => {
             user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
             user.currentMwMessageIndex++;
+
+            db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
+                if (error !== null)
+                    return;
+            });
+            db.all("SELECT num_of_trans FROM user WHERE user_telegram_id=" + user.id + ";", (error, rows) => {
+                notification.mileStones(user, rows[0].num_of_trans);
+                if (error !== null)
+                    return;
+            });
+
             trans(user, tgMsg);
         }
     );
@@ -454,10 +470,12 @@ function oauthLogin(tgMsg) {
                 OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
                     user["oauth_token_secret"] = perm_data.oauth_token_secret;
+                    console.log("dd");
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
-                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)} ;`;
+                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)} 
+                    WHERE user_telegram_id = '${user.id}';`;
                     db.run(insertStmtStr, (error) => {
                         if (error !== null) {
                             console.log(`updating user ${tgMsg.from.id} to the database failed: ${error}`);
