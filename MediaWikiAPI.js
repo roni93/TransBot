@@ -5,12 +5,11 @@ const request = require("request").defaults({
 });
 
 const apiUrl = "https://translatewiki.net/w/api.php";
-const crypto = require('crypto');
-const OAuth = require("oauth-1.0a");
-const MediaWikiStrategy = require('passport-mediawiki-oauth').OAuthStrategy;
+
 const passport = require('passport');
-const CONSUMER_KEY = "47a716a9fca6845f7a734d31fcef9955";
-const CONSUMER_SECRET = "f26a6e8982db87f7e6d1dc0db481f98f89029d25";
+const OauthApi = require("./Oauth.js");
+
+const auth = OauthApi.cryptoHashFunction();
 
 exports.getUntranslatedMessages = function (languageCode, cb) {
     request.post({
@@ -34,21 +33,8 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
 };
 
 
-const auth = OAuth({
-    consumer: {key: CONSUMER_KEY, secret: CONSUMER_SECRET},
-    signature_method: 'HMAC-SHA1',
-    hash_function(base_string, key) {
-        return crypto.createHmac('sha1', key).update(base_string).digest('base64');
-    }
-});
 
-
-exports.addTranslation = function (user, title, translation, summary, cb) {
-
-    const token = {
-        key: user.oauth_token,
-        secret: user.oauth_token_secret
-    };
+exports.addTranslation = function (token, title, translation, summary, cb) {
 
     const request_data = {
         url: apiUrl + "?action=query&format=json&meta=tokens",
@@ -127,6 +113,8 @@ exports.getDocumentation = function (title, cb) {
         }
     );
 };
+
+
 
 exports.getTranslationMemory = function (title, cb) {
     request.post({

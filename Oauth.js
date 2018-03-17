@@ -1,16 +1,26 @@
 "use strict";
 
-const CONSUMER_KEY = "47a716a9fca6845f7a734d31fcef9955";
-const CONSUMER_SECRET = "f26a6e8982db87f7e6d1dc0db481f98f89029d25";
+const jsonfile = require("jsonfile");
+const qs = require("querystring");
+const crypto  = require('crypto');
+const OAuth = require("oauth-1.0a");
+
+let config;
+try {
+    config = jsonfile.readFileSync("config.json");
+} catch (e) {
+    console.log(e);
+}
+
+const CONSUMER_KEY = config.CONSUMER_KEY;
+const CONSUMER_SECRET = config.CONSUMER_SECRET;
 const url = "https://translatewiki.net/w/index.php?title=Special:OAuth/initiate";
 
 const request = require("request").defaults({
     jar: true
 });
 
-const qs = require("querystring");
-const crypto  = require('crypto');
-const OAuth = require("oauth-1.0a");
+
 
 const auth = OAuth({
     consumer: {key: CONSUMER_KEY, secret: CONSUMER_SECRET},
@@ -49,6 +59,9 @@ exports.OauthLogIn = function (cb) {
     });
 };
 
+exports.cryptoHashFunction = function () {
+    return auth;
+};
 
 exports.OauthLogIn2 = function (verifier, req_data, cb) {
 
@@ -79,7 +92,6 @@ exports.OauthLogIn2 = function (verifier, req_data, cb) {
         headers: auth.toHeader(auth.authorize(request_data, token))
     }, function(error, response, body) {
         let perm_data = qs.parse(body);
-        console.log(perm_data);
         cb(perm_data)
     });
 

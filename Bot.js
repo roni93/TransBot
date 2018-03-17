@@ -8,19 +8,21 @@ const mediaWikiAPI = require("./MediaWikiAPI.js");
 const langApi = require("./languageApi");
 const OauthApi = require("./Oauth.js");
 const tgFancyBot = require("tgfancy");
+const jsonfile = require("jsonfile");
 
 const sqlite3 = require("sqlite3").verbose();
 const db = new sqlite3.Database("db/telegram-bot.db");
 
+let config;
+let flags;
+try {
+    config = jsonfile.readFileSync("config.json");
+    flags = jsonfile.readFileSync("flags.json");
+} catch (e) {
+    console.log(e);
+}
 
-const START_MODE = "start";
-const LANG_MODE = "language";
-const LANG_SELECTED_MODE = "langSelected";
-const RESPONSE_MODE = "waitForTranslation";
-const READY_MODE = "readyToTrans";
-const VERIFIER_MODE = "waitForVerifier";
-
-const tgBot = new tgFancyBot('375437667:AAHzCxvO7LZnHPb6YNQTZVgrgLbjq5Ly0JE', {polling: true});
+const tgBot = new tgFancyBot(config.token, {polling: true});
 
 let registeredUsers = {};
 
@@ -30,14 +32,14 @@ function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-            if (user.state === LANG_SELECTED_MODE) {
+            if (user.state === flags.LANG_SELECTED_MODE) {
                 setLanguage(tgMsg, user);
             }
-            if (user.state === RESPONSE_MODE) {
+            if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
                 publishTrans(user, tgMsg, targetMwMessage);
             }
-            if (user.state === READY_MODE || tgMsg.text === "/help") {
+            if (user.state === flags.READY_MODE || tgMsg.text === "/help") {
                 helpFunction(tgMsg)
             }
         }
@@ -53,7 +55,7 @@ tgBot.on("callback_query", (tgMsg) => {
     }
     if (tgMsg.data === 'set-language') {
         tgBot.sendMessage(user.id, "Please type your language:");
-        user.state = LANG_SELECTED_MODE;
+        user.state = flags.LANG_SELECTED_MODE;
     }
     if (tgMsg.data === "instructions") {
         notifyUser(tgMsg, user)
@@ -61,24 +63,23 @@ tgBot.on("callback_query", (tgMsg) => {
     if (tgMsg.data === "back-trans") {
         trans(user, tgMsg)
     }
-    if (user.state === VERIFIER_MODE && tgMsg.data === 'change-lang') {
-
+    if (user.state === flags.VERIFIER_MODE && tgMsg.data === 'change-lang') {
         initNewUserLang(tgMsg, user, false, () => {
         })
     }
-    if (user.state === LANG_MODE) {
+    if (user.state === flags.LANG_MODE) {
         langSelected(user, tgMsg, true);
     }
-    if (user.state === READY_MODE && tgMsg.data === "start-trans") {
+    if (user.state === flags.READY_MODE && tgMsg.data === "start-trans") {
         trans(user, tgMsg)
     }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "doc") {
+    if (user.state === flags.RESPONSE_MODE && tgMsg.data === "doc") {
         showDocumentation(user);
     }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "skip") {
+    if (user.state === flags.RESPONSE_MODE && tgMsg.data === "skip") {
         skipMsg(user, tgMsg);
     }
-    if (user.state === RESPONSE_MODE && tgMsg.data === "similar") {
+    if (user.state === flags.RESPONSE_MODE && tgMsg.data === "similar") {
         showAndCacheSimilar(user);
     }
 });
@@ -139,7 +140,6 @@ function breakPoint(tgMsg, user, flag) {
         tgBot.sendMessage(user.id, "for help in any moment please type '/help', or press now", options);
     }
     else {
-
         let options = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [
@@ -173,7 +173,7 @@ function setLanguage(tgMsg) {
 
                 user.fullLang = arg.languagesearch;
                 if (Object.keys(arg.languagesearch).length === 1) {
-                    user.state = LANG_MODE;
+                    user.state = flags.LANG_MODE;
                     user.lang = Object.keys(arg.languagesearch)[0];
                     langApi.addNewLang(tgMsg, user.lang);
                     langSelected(user, tgMsg, false);
@@ -188,7 +188,7 @@ function setLanguage(tgMsg) {
                             inline_keyboard: inlineKeyboard
                         })
                     };
-                    user.state = LANG_MODE;
+                    user.state = flags.LANG_MODE;
                     tgBot.sendMessage(user.id, "please select your language:", tgMsgOptions);
                 }
 
@@ -211,21 +211,18 @@ function validTgMessage(tgMsg) {
 
 function initNewUserLang(tgMsg, user, flag, cb) {
     const langCodeTgMsg = tgMsg.from.language_code;
-
     let language = langApi.findLang(langCodeTgMsg);
     //the case we know the conversion
     if (language && flag) {
         cb(language);
     }
     else { //the user will type and choose is language
-
-        user.state = LANG_SELECTED_MODE;
+        user.state = flags.LANG_SELECTED_MODE;
         tgBot.sendMessage(user.id, "Please type your language:");
     }
 }
 
 function registerToDB(tgMsg, user) {
-
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type ' _/help_ ' for for further instruction", {parse_mode: "markdown"});
 
@@ -236,14 +233,13 @@ function registerToDB(tgMsg, user) {
                 inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
             })
         };
-        user.state = VERIFIER_MODE;
+        user.state = flags.VERIFIER_MODE;
         tgBot.sendMessage(user.id, "Please sign in into your translatewiki account", tgMsgOptions);
 
     });
 }
 
 function langSelected(user, tgMsg, flag) {
-
     if (flag) {
         langApi.addNewLang(tgMsg, tgMsg.data);
         user.lang = tgMsg.data;
@@ -259,7 +255,6 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
     const userID = user.id;
     const selectString = `SELECT * FROM user WHERE user_telegram_id = '${userID}'`;
     registeredUsers[user.id] = user;
-
     db.all(selectString, (error, rows) => {
         if (error !== null) {
             console.log(`Loading user ${userID} failed: ${error}`);
@@ -275,7 +270,7 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
                 if (error !== null)
                     return;
                 user.lang = rows[0].user_language;
-                user.state = READY_MODE
+                user.state = flags.READY_MODE
                 breakPoint(tgMsg, user, false);
                 return user;
             });
@@ -299,12 +294,11 @@ function initUser(tgMsg) {
         id: tgMsg.from.id,
         firstName: tgMsg.from.first_name,
         lang: tgMsg.from.language_code,
-        state: START_MODE,
+        state: flags.START_MODE,
         currentMwMessageIndex: 0,
         skippedMrddages: [],
         loadedMwMessages: [],
         loadedTranslationMemory: {},
-        publishingTgMessages: {},
         translatedTgMessages: {},
     };
 }
@@ -314,7 +308,6 @@ function showUnTrans(user, tgMsg) {
     let targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     if (targetMwMessage === undefined) {
         breakPoint(tgMsg, user, false);
-        // TODO: Show the welcome menu instead
         return;
     }
     console.log(targetMwMessage.title);
@@ -326,7 +319,7 @@ function showUnTrans(user, tgMsg) {
             //console.log(user.id, `No translation memory was found for "${targetMwMessage.title}"`);
         }
         const inlineKeyboard = [];
-        user.state = RESPONSE_MODE;
+        user.state = flags.RESPONSE_MODE;
         inlineKeyboard.push([{text: "Documentation", callback_data: "doc"}, {
             text: "Skip message",
             callback_data: "skip"
@@ -353,11 +346,11 @@ function showUnTrans(user, tgMsg) {
 
 
 function trans(user, tgMsg) {
-    user.state = RESPONSE_MODE;
+    user.state = flags.RESPONSE_MODE;
 
     if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
         loadUntranslated(user, (loadedMwMessages) => {
-            user.state = RESPONSE_MODE;
+            user.state = flags.RESPONSE_MODE;
             user.loadedMwMessages = loadedMwMessages;
             showUnTrans(user, tgMsg);
         });
@@ -429,34 +422,34 @@ function publishTrans(user, tgMsg, targetMwMessage) {
     if (tgMsg.text === "/help")
         return helpFunction(tgMsg);
 
-    mediaWikiAPI.addTranslation(user, targetMwMessage.title, text, "Made with Telegram Bot",
+    const token = {
+        key: user.oauth_token,
+        secret: user.oauth_token_secret
+    };
+    mediaWikiAPI.addTranslation(token, targetMwMessage.title, text, "Made with Telegram Bot",
         () => {
             user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
-            user.publishingTgMessages[targetMwMessage.title] = text;
             user.currentMwMessageIndex++;
             trans(user, tgMsg);
         }
     );
 }
 
-
 tgBot.on("edited_message", (tgMsg) => {
-
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
             publishTrans(user, tgMsg, user.translatedTgMessages[tgMsg.message_id])
-
         }
     });
 });
 
 function oauthLogin(tgMsg) {
-    if (tgMsg.text ==="/start")
+    if (tgMsg.text === "/start")
         return helpFunction(tgMsg);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
 
-            if (user.state === VERIFIER_MODE) {
+            if (user.state === flags.VERIFIER_MODE) {
                 addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
                 OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
@@ -471,7 +464,7 @@ function oauthLogin(tgMsg) {
                         }
                     });
                 });
-                user.state = READY_MODE;
+                user.state = flags.READY_MODE;
             }
         }
     });
@@ -483,7 +476,7 @@ tgBot.onText(/.*/, processTgMessage);
 function helpFunction(tgMsg) {
     let user = registeredUsers[tgMsg.from.id];
     let tgMsgOptions = {};
-    if (user.state === VERIFIER_MODE) {
+    if (user.state === flags.VERIFIER_MODE) {
         tgMsgOptions = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [

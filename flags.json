@@ -1,0 +1,8 @@
+{
+ "START_MODE" : "start",
+ "LANG_MODE" : "language",
+ "LANG_SELECTED_MODE" : "langSelected",
+ "RESPONSE_MODE" : "waitForTranslation",
+ "READY_MODE" : "readyToTrans",
+ "VERIFIER_MODE" : "waitForVerifier"
+}
