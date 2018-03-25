@@ -79,6 +79,9 @@ tgBot.on("callback_query", (tgMsg) => {
     if (user.state === flags.RESPONSE_MODE && tgMsg.data === "doc") {
         showDocumentation(user);
     }
+    if (user.state === flags.RESPONSE_MODE && tgMsg.data === "mt") {
+        showMT(user);
+    }
     if (user.state === flags.RESPONSE_MODE && tgMsg.data === "skip") {
         skipMsg(user, tgMsg);
     }
@@ -86,6 +89,11 @@ tgBot.on("callback_query", (tgMsg) => {
         showAndCacheSimilar(user);
     }
 });
+
+function showMT(user) {
+    tgBot.sendMessage(user.id, user.mt);
+    user.mt = "";
+}
 
 function notifyUser(tgMsg, user) {
     tgBot.sendMessage(user.id, "Some explanation...");
@@ -307,6 +315,7 @@ function initUser(tgMsg) {
         loadedMwMessages: [],
         loadedTranslationMemory: {},
         translatedTgMessages: {},
+        mt: ""
     };
 }
 
@@ -327,25 +336,38 @@ function showUnTrans(user, tgMsg) {
         }
         const inlineKeyboard = [];
         user.state = flags.RESPONSE_MODE;
+
+
         inlineKeyboard.push([{text: "Documentation", callback_data: "doc"}, {
             text: "Skip message",
             callback_data: "skip"
         }, {text: "Similar message", callback_data: "similar"}]);
-        const tgMsgOptions = {
-            reply_markup: JSON.stringify({inline_keyboard: inlineKeyboard}),
-            disable_web_page_preview: true,
 
-        };
-        if (targetMwMessage.translation !== null) {
-            tgBot.sendMessage(user.id, targetMwMessage.definition, {
-                disable_web_page_preview: true
-            });
-            tgBot.sendMessage(user.id, "*Current translation:*", {parse_mode: "Markdown"});
-            tgBot.sendMessage(user.id, targetMwMessage.translation, tgMsgOptions);
-        }
-        else {
-            tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
-        }
+        // mediaWikiAPI.getOtherLang(targetMwMessage.title,()=>{});
+
+        mediaWikiAPI.getMT(targetMwMessage.title, (flag, target) => {
+            if (flag) {
+                user.mt = target;
+                inlineKeyboard.push([{text: "Machine translation", callback_data: "mt"}]);
+            }
+            const tgMsgOptions = {
+                reply_markup: JSON.stringify({inline_keyboard: inlineKeyboard}),
+                disable_web_page_preview: true,
+            };
+
+            if (targetMwMessage.translation !== null) {
+                tgBot.sendMessage(user.id, targetMwMessage.definition, {
+                    disable_web_page_preview: true
+                });
+                tgBot.sendMessage(user.id, "*Current translation:*", {parse_mode: "Markdown"});
+                tgBot.sendMessage(user.id, targetMwMessage.translation, tgMsgOptions);
+            }
+            else {
+                tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
+            }
+        });
+
+
     });
 }
 
@@ -437,6 +459,7 @@ function publishTrans(user, tgMsg, targetMwMessage) {
             user.currentMwMessageIndex++;
 
             db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
+
                 if (error !== null)
                     return;
             });
@@ -487,6 +510,7 @@ function oauthLogin(tgMsg) {
         }
     });
 }
+
 tgBot.onText(/start/, oauthLogin);
 tgBot.onText(/.*/, processTgMessage);
 

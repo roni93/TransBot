@@ -115,6 +115,53 @@ exports.getDocumentation = function (title, cb) {
 };
 
 
+exports.getMT = function (title, cb) {
+    request.post({
+            url: apiUrl,
+            form: {
+                action: "translationaids",
+                format: "json",
+                prop: "mt",
+                title
+            }
+        }, (error, response, body) => {
+
+            const translationaids = JSON.parse(body);
+            if(translationaids.helpers.mt.length === 0){
+                cb(false,"");
+            }
+            else{
+                cb(true,translationaids.helpers.mt[0].target);
+
+            }
+        }
+    );
+};
+
+exports.getOtherLang = function (title, cb) {
+    request.post({
+            url: apiUrl,
+            form: {
+                action: "translationaids",
+                format: "json",
+                prop: "inotherlanguages",
+                title
+            }
+        }, (error, response, body) => {
+
+            const translationaids = JSON.parse(body);
+            console.log(body);
+            // if(translationaids.helpers.mt.length === 0){
+            //     cb(false,"");
+            // }
+            // else{
+            //     cb(true,translationaids.helpers.mt[0].target);
+            //
+            // }
+        }
+    );
+};
+
 
 exports.getTranslationMemory = function (title, cb) {
     request.post({
