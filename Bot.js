@@ -517,6 +517,9 @@ tgBot.onText(/.*/, processTgMessage);
 
 function helpFunction(tgMsg) {
     let user = registeredUsers[tgMsg.from.id];
+    if (user === undefined){
+        return;
+    }
     let tgMsgOptions = {};
     if (user.state === flags.VERIFIER_MODE) {
         tgMsgOptions = {
