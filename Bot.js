@@ -37,14 +37,23 @@ function processTgMessage(tgMsg) {
         if (user !== undefined) {
             if (user.state === flags.LANG_SELECTED_MODE) {
                 setLanguage(tgMsg, user);
+                return;
             }
-            if (user.state === flags.RESPONSE_MODE) {
+            else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
                 publishTrans(user, tgMsg, targetMwMessage);
+                return;
+
             }
-            if (user.state === flags.READY_MODE || tgMsg.text === "/help") {
-                helpFunction(tgMsg)
+            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state!==flags.RESPONSE_MODE) {
+
+                helpFunction(tgMsg);
+                return;
             }
+            else {
+
+            }
+
         }
     });
 }
@@ -446,8 +455,10 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
 function publishTrans(user, tgMsg, targetMwMessage) {
 
     const text = tgMsg.text;
-    if (tgMsg.text === "/help")
+    if (tgMsg.text === "/help"){
         return helpFunction(tgMsg);
+
+    }
 
     const token = {
         key: user.oauth_token,
@@ -483,8 +494,10 @@ tgBot.on("edited_message", (tgMsg) => {
 });
 
 function oauthLogin(tgMsg) {
-    if (tgMsg.text === "/start")
+    if (tgMsg.text === "/start") {
+
         return helpFunction(tgMsg);
+    }
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
 
@@ -493,7 +506,6 @@ function oauthLogin(tgMsg) {
                 OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
                     user["oauth_token_secret"] = perm_data.oauth_token_secret;
-                    console.log("dd");
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
