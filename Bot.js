@@ -35,6 +35,7 @@ function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
+
             if (user.state === flags.LANG_SELECTED_MODE) {
                 setLanguage(tgMsg, user);
                 return;
@@ -127,6 +128,11 @@ function notifyUser(tgMsg, user) {
 function getUser(tgMsg, cb) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
+        if(tgMsg.text ==='/help'){
+            tgMsg.text="start";
+            processTgMessage(tgMsg);
+            return;
+        }
         let user = initUser(tgMsg);
         registeredUsers[user.id] = user;
         loadUserFromDbByTgMsg(tgMsg, user, () => {
@@ -564,7 +570,7 @@ function helpFunction(tgMsg) {
             reply_markup: JSON.stringify({
                 inline_keyboard: [
                     [{text: 'Instructions', callback_data: 'instructions'}, {
-                        text: 'Back to translate',
+                        text: 'Translate',
                         callback_data: 'back-trans'
                     },{
                         text: 'SIGN OUT', callback_data: 'signout'
