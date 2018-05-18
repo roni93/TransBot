@@ -41,6 +41,9 @@ function processTgMessage(tgMsg) {
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+                console.log(user.currentMwMessageIndex)
+                console.log(targetMwMessage)
+
                 publishTrans(user, tgMsg, targetMwMessage);
                 return;
 
@@ -72,6 +75,17 @@ tgBot.on("callback_query", (tgMsg) => {
     }
     if (tgMsg.data === "instructions") {
         notifyUser(tgMsg, user)
+    }
+    if(tgMsg.data === "signout"){
+        tgBot.sendMessage(user.id, "You have been signed out successfully");
+
+        db.all("DELETE FROM user WHERE user_telegram_id = " + user.id + ";", (error) => {
+            delete registeredUsers[user.id];
+            if (error !== null){
+                return;
+
+            }
+        });
     }
     if (tgMsg.data === "back-trans") {
         trans(user, tgMsg)
@@ -353,7 +367,6 @@ function showUnTrans(user, tgMsg) {
             callback_data: "skip"
         }, {text: "Similar message", callback_data: "similar"}]);
 
-        // mediaWikiAPI.getOtherLang(targetMwMessage.title,()=>{});
 
         mediaWikiAPI.getMT(targetMwMessage.title, (flag, target) => {
             if (flag) {
@@ -385,7 +398,7 @@ function showUnTrans(user, tgMsg) {
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
 
-    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
+    if (user.currentMwMessageIndex === 5 || user.loadedMwMessages.length === 0) {
         loadUntranslated(user, (loadedMwMessages) => {
             user.state = flags.RESPONSE_MODE;
             user.loadedMwMessages = loadedMwMessages;
@@ -553,6 +566,8 @@ function helpFunction(tgMsg) {
                     [{text: 'Instructions', callback_data: 'instructions'}, {
                         text: 'Back to translate',
                         callback_data: 'back-trans'
+                    },{
+                        text: 'SIGN OUT', callback_data: 'signout'
                     }]]
             })
         };
