@@ -35,16 +35,30 @@ function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
+
             if (user.state === flags.LANG_SELECTED_MODE) {
                 setLanguage(tgMsg, user);
+                return;
             }
-            if (user.state === flags.RESPONSE_MODE) {
+            else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+                console.log(user.currentMwMessageIndex)
+                console.log(targetMwMessage)
+
                 publishTrans(user, tgMsg, targetMwMessage);
+                return;
+
             }
-            if (user.state === flags.READY_MODE || tgMsg.text === "/help") {
-                helpFunction(tgMsg)
+            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state!==flags.RESPONSE_MODE) {
+
+                helpFunction(tgMsg);
+                return;
             }
+            else {
+                //
+
+            }
+
         }
     });
 }
@@ -62,6 +76,17 @@ tgBot.on("callback_query", (tgMsg) => {
     }
     if (tgMsg.data === "instructions") {
         notifyUser(tgMsg, user)
+    }
+    if(tgMsg.data === "signout"){
+        tgBot.sendMessage(user.id, "You have been signed out successfully");
+
+        db.all("DELETE FROM user WHERE user_telegram_id = " + user.id + ";", (error) => {
+            delete registeredUsers[user.id];
+            if (error !== null){
+                return;
+
+            }
+        });
     }
     if (tgMsg.data === "back-trans") {
         trans(user, tgMsg)
@@ -103,6 +128,11 @@ function notifyUser(tgMsg, user) {
 function getUser(tgMsg, cb) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
+        if(tgMsg.text ==='/help'){
+            tgMsg.text="start";
+            processTgMessage(tgMsg);
+            return;
+        }
         let user = initUser(tgMsg);
         registeredUsers[user.id] = user;
         loadUserFromDbByTgMsg(tgMsg, user, () => {
@@ -343,7 +373,6 @@ function showUnTrans(user, tgMsg) {
             callback_data: "skip"
         }, {text: "Similar message", callback_data: "similar"}]);
 
-        // mediaWikiAPI.getOtherLang(targetMwMessage.title,()=>{});
 
         mediaWikiAPI.getMT(targetMwMessage.title, (flag, target) => {
             if (flag) {
@@ -375,7 +404,7 @@ function showUnTrans(user, tgMsg) {
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
 
-    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
+    if (user.currentMwMessageIndex === 5 || user.loadedMwMessages.length === 0) {
         loadUntranslated(user, (loadedMwMessages) => {
             user.state = flags.RESPONSE_MODE;
             user.loadedMwMessages = loadedMwMessages;
@@ -446,8 +475,10 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
 function publishTrans(user, tgMsg, targetMwMessage) {
 
     const text = tgMsg.text;
-    if (tgMsg.text === "/help")
+    if (tgMsg.text === "/help"){
         return helpFunction(tgMsg);
+
+    }
 
     const token = {
         key: user.oauth_token,
@@ -483,8 +514,10 @@ tgBot.on("edited_message", (tgMsg) => {
 });
 
 function oauthLogin(tgMsg) {
-    if (tgMsg.text === "/start")
+    if (tgMsg.text === "/start") {
+
         return helpFunction(tgMsg);
+    }
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
 
@@ -493,7 +526,6 @@ function oauthLogin(tgMsg) {
                 OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
                     user["oauth_token_secret"] = perm_data.oauth_token_secret;
-                    console.log("dd");
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
@@ -538,8 +570,10 @@ function helpFunction(tgMsg) {
             reply_markup: JSON.stringify({
                 inline_keyboard: [
                     [{text: 'Instructions', callback_data: 'instructions'}, {
-                        text: 'Back to translate',
+                        text: 'Translate',
                         callback_data: 'back-trans'
+                    },{
+                        text: 'SIGN OUT', callback_data: 'signout'
                     }]]
             })
         };

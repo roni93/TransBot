@@ -7,7 +7,7 @@ app.use('/translate-bot/auth', function (req, res) {
     var verifier = req.query.oauth_verifier;
     var token = req.query.oauth_token;
     if (verifier !== undefined && token !== undefined)
-        res.redirect('https://telegram.me/ronitranslatebot?start=verifier' + verifier + 'token' + token);
+        res.redirect('https://telegram.me/ronitranslatebot?start=' + verifier );
     res.send("Something wen't wrong. Please try again.");
 });
 
