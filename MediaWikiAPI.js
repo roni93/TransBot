@@ -13,7 +13,7 @@ const auth = OauthApi.cryptoHashFunction();
 
 exports.getUntranslatedMessages = (function(){
 let projectCode="tsint-0-all";
-return function (languageCode, cb, projCode) {
+return function (languageCode, cb, projCode=null) {
     if(projCode){
 	projectCode=projCode;
     }else{
