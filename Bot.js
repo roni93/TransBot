@@ -128,7 +128,7 @@ tgBot.on("callback_query", (tgMsg) => {
 });
 
 function setProject(user, tgMsg){
-	let match = mediaWikiAPI.getMessageGroups().filter(item => item.label==tgMsg.text);
+	mediaWikiAPI.getMessageGroups(result => {let match=result.filter(item => item.label==tgMsg.text);
 	if(match.length){
 		mediaWikiAPI.getUntranslatedMessages(null, null, match[0].id);
 		user.state = flags.RESPONSE_MODE;
@@ -136,6 +136,7 @@ function setProject(user, tgMsg){
 	else{
 		tgBot.sendMessage(user.id, "Could not find the specified project, please use it's official name"); 
 	}
+	});
 }
 
 function showMT(user) {
@@ -464,7 +465,7 @@ function loadUntranslated(user, cb) {
             cb(user.loadedMwMessages)
         } else
             tgBot.sendMessage(user.id, "Nothing to translate!\nWhich project would you like to translate next?");
-	    user.state=SET_PROJECT;
+	    user.state=flags.SET_PROJECT;
     });
 }
 
