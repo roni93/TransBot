@@ -632,6 +632,12 @@ $wgTranslateTestTTMServer = null;
  */
 $wgTranslateTestUsers = [];
 
+/**
+ * Whether to use the message group watchlist.
+ * @since 2018.05
+ */
+$wgTranslateEnableMessageGroupWatchlist = false;
+
 # </source>
 
 /**
