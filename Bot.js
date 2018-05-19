@@ -58,6 +58,9 @@ function processTgMessage(tgMsg) {
                 helpFunction(tgMsg);
                 return;
             }
+            else if (user.state === flags.SET_PROJECT) {
+		setProject(user, tgMsg);
+	    }
             else {
                 //
 
@@ -123,6 +126,17 @@ tgBot.on("callback_query", (tgMsg) => {
         showAndCacheSimilar(user);
     }
 });
+
+function setProject(user, tgMsg){
+	let match = mediaWikiAPI.getMessageGroups().filter(item => item.label==tgMsg.text);
+	if(match.length){
+		mediaWikiAPI.getUntranslatedMessages(null, null, match[0].id);
+		user.state = flags.RESPONSE_MODE;
+	}
+	else{
+		tgBot.sendMessage(user.id, "Could not find the specified project, please use it's official name"); 
+	}
+}
 
 function showMT(user) {
     tgBot.sendMessage(user.id, user.mt);
@@ -449,8 +463,8 @@ function loadUntranslated(user, cb) {
         if (user.loadedMwMessages.length) {
             cb(user.loadedMwMessages)
         } else
-            tgBot.sendMessage(user.id, "Nothing to translate!");
-
+            tgBot.sendMessage(user.id, "Nothing to translate!\nWhich project would you like to translate next?");
+	    user.state=SET_PROJECT;
     });
 }
 

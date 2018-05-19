@@ -11,7 +11,12 @@ const OauthApi = require("./Oauth.js");
 
 const auth = OauthApi.cryptoHashFunction();
 
-exports.getUntranslatedMessages = function (languageCode, cb) {
+exports.getUntranslatedMessages = (function(){
+let projectCode="tsint-0-all";
+return function (languageCode, cb, projCode) {
+    if(projCode){
+	projectCode=projCode;
+    }else{
     request.post({
             url: apiUrl,
             form: {
@@ -19,7 +24,7 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
                 format: "json",
                 prop: "",
                 list: "messagecollection",
-                mcgroup: "tsint-0-all",
+                mcgroup: projectCode,
                 mclanguage: languageCode,
                 mclimit: 5, // TODO: Make configurable
                 mcfilter: "!optional|!ignored|!translated"
@@ -30,7 +35,8 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
             cb(mwMessageCollection);
         }
     );
-};
+}}
+})();
 
 
 
@@ -134,6 +140,21 @@ exports.getMT = function (title, cb) {
                 cb(true,translationaids.helpers.mt[0].target);
 
             }
+        }
+    );
+};
+
+exports.getMessageGroups= function(cb){
+    request.post({
+            url: apiUrl,
+            form: {
+                action: "query",
+                format: "json",
+                meta: "messagegroup",
+		mgprop: "id%7Clabel"
+            }
+        }, (error, response, body) => {
+            cb(JSON.parse(body).query.messagegroups);
         }
     );
 };
