@@ -31,7 +31,7 @@ const port = parseInt(process.env.PORT, 10);
 
 
 let registeredUsers = {};
-let dictTokenToId ={};
+let dictTokenToId = {};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
 notification.turnOnNotification(tgBot);
@@ -42,20 +42,24 @@ function processTgMessage(tgMsg) {
         if (user !== undefined) {
 
             if (user.state === flags.LANG_SELECTED_MODE || user.state === flags.UPDATE_LANG) {
-                if(user.state === flags.LANG_SELECTED_MODE)
+                if (user.state === flags.LANG_SELECTED_MODE)
 
-                    setLanguage(tgMsg,user, false);
+                    setLanguage(tgMsg, user, false);
                 else
                     setLanguage(tgMsg, user, true);
                 return;
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
+                if(targetMwMessage === undefined){
+                    helpFunction(tgMsg);
+                    return;
+                }
                 publishTrans(user, tgMsg, targetMwMessage);
                 return;
 
             }
-            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state!==flags.RESPONSE_MODE) {
+            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state !== flags.RESPONSE_MODE) {
                 helpFunction(user);
                 return;
             }
@@ -79,12 +83,12 @@ tgBot.on("callback_query", (tgMsg) => {
     if (tgMsg.data === "instructions") {
         notifyUser(tgMsg, user)
     }
-    if(tgMsg.data === "signout"){
+    if (tgMsg.data === "signout") {
         tgBot.sendMessage(user.id, "You have been signed out successfully");
 
         db.all("DELETE FROM user WHERE user_telegram_id = " + user.id + ";", (error) => {
             delete registeredUsers[user.id];
-            if (error !== null){
+            if (error !== null) {
                 return;
 
             }
@@ -97,7 +101,7 @@ tgBot.on("callback_query", (tgMsg) => {
         initNewUserLang(tgMsg, user, false, () => {
         })
     }
-    if(tgMsg.data ==="update-lang"){
+    if (tgMsg.data === "update-lang") {
         user.state = flags.UPDATE_LANG;
         tgBot.sendMessage(user.id, "Please type your language:");
     }
@@ -105,6 +109,7 @@ tgBot.on("callback_query", (tgMsg) => {
         langSelected(user, tgMsg, true, false);
     }
     if (user.state === flags.READY_MODE && tgMsg.data === "start-trans") {
+
         trans(user, tgMsg)
     }
     if (user.state === flags.RESPONSE_MODE && tgMsg.data === "doc") {
@@ -134,8 +139,8 @@ function notifyUser(tgMsg, user) {
 function getUser(tgMsg, cb) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
-        if(tgMsg.text ==='/help'){
-            tgMsg.text="start";
+        if (tgMsg.text === '/help') {
+            tgMsg.text = "start";
             processTgMessage(tgMsg);
             return;
         }
@@ -162,14 +167,15 @@ function skipMsg(user, tgMsg) {
     trans(user, tgMsg);
 }
 
+
 function showDocumentation(user) {
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     const title = targetMwMessage.title;
     mediaWikiAPI.getDocumentation(title, (documentation) => {
-        tgBot.sendMessage(
-            user.id,
-            documentation
-        );
+        if (documentation === null) {
+            documentation = "*There is no documentation for this message*"
+        }
+        tgBot.sendMessage(user.id,documentation,{parse_mode: "Markdown"});
     });
 }
 
@@ -198,7 +204,7 @@ function breakPoint(tgMsg, user, flag) {
     }
 }
 
-function setLanguage(tgMsg,user,flag) {
+function setLanguage(tgMsg, user, flag) {
 
     if (user !== undefined) {
         let text = tgMsg.text;
@@ -293,8 +299,12 @@ function langSelected(user, tgMsg, flag, flag_update) {
     }
     tgBot.sendMessage(user.id, "Your language set to *" + user.fullLang[user.lang] + "*", {parse_mode: "markdown"});
     delete user.fullLang;
-    if(flag_update){
-        console.log(user);
+    if (flag_update) {
+        user.currentMwMessageIndex = 0;
+        user.loadedMwMessages = [];
+        user.loadedTranslationMemory = {};
+        user.translatedTgMessages = {};
+        user.mt = "";
         db.all(`UPDATE user SET user_language = ${JSON.stringify(user.lang)} WHERE user_telegram_id = ${user.id}  ;`, (error) => {
             if (error !== null) {
                 return;
@@ -374,7 +384,6 @@ function showUnTrans(user, tgMsg) {
         breakPoint(tgMsg, user, false);
         return;
     }
-    console.log(targetMwMessage.title);
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
 
         targetMwMessage.translationMemory = translationMemory;
@@ -420,12 +429,20 @@ function showUnTrans(user, tgMsg) {
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
     if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
-        loadUntranslated(user, (loadedMwMessages) => {
-            user.state = flags.RESPONSE_MODE;
-            user.loadedMwMessages = loadedMwMessages;
-            showUnTrans(user, tgMsg);
+
+        loadUntranslated(user, (loadedMwMessages, flag) => {
+            if(flag){
+                user.state = flags.RESPONSE_MODE;
+                user.loadedMwMessages = loadedMwMessages;
+                showUnTrans(user, tgMsg);
+
+            }
+            else {
+                tgBot.sendMessage(user.id, "Nothing to translate!");
+                processTgMessage(tgMsg);
+            }
+
         });
-        console.log("load");
     }
     else {
         showUnTrans(user, tgMsg);
@@ -440,9 +457,10 @@ function loadUntranslated(user, cb) {
         });
         user.currentMwMessageIndex = 0;
         if (user.loadedMwMessages.length) {
-            cb(user.loadedMwMessages)
-        } else
-            tgBot.sendMessage(user.id, "Nothing to translate!");
+            cb(user.loadedMwMessages,true)
+        } else {
+            cb(user.loadedMwMessages,false)
+        }
 
     });
 }
@@ -490,7 +508,7 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
 function publishTrans(user, tgMsg, targetMwMessage) {
 
     const text = tgMsg.text;
-    if (tgMsg.text === "/help"){
+    if (tgMsg.text === "/help") {
         return helpFunction(user);
 
     }
@@ -501,7 +519,7 @@ function publishTrans(user, tgMsg, targetMwMessage) {
     };
     mediaWikiAPI.addTranslation(token, targetMwMessage.title, text, "Made with Telegram Bot",
         () => {
-            if(!user.translatedTgMessages[tgMsg.message_id]) {
+            if (!user.translatedTgMessages[tgMsg.message_id]) {
                 user.currentMwMessageIndex++;
 
                 db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
@@ -534,7 +552,7 @@ app.use('/translate-bot/auth', function (req, res) {
     const verifier = req.query.oauth_verifier;
     const token = req.query.oauth_token;
 
-    if (verifier !== undefined && token !== undefined){
+    if (verifier !== undefined && token !== undefined) {
         const user = dictTokenToId[token];
 
         if (user !== undefined) {
@@ -566,15 +584,13 @@ app.use('/translate-bot/auth', function (req, res) {
 });
 
 
-
-
 app.listen(port);
 
 tgBot.onText(/.*/, processTgMessage);
 
 
 function helpFunction(user) {
-    if (user === undefined){
+    if (user === undefined) {
         return;
     }
     let tgMsgOptions = {};
@@ -597,8 +613,9 @@ function helpFunction(user) {
                     [{text: 'Instructions', callback_data: 'instructions'}, {
                         text: 'Translate',
                         callback_data: 'back-trans'
-                    }],[{
-                        text: 'SIGN OUT', callback_data: 'signout'},{text:"Change langauge", callback_data: "update-lang"}]]
+                    }], [{
+                        text: 'SIGN OUT', callback_data: 'signout'
+                    }, {text: "Change langauge", callback_data: "update-lang"}]]
             })
         };
     }
