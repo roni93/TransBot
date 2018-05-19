@@ -508,7 +508,7 @@ function publishTrans(user, tgMsg, targetMwMessage) {
     };
     mediaWikiAPI.addTranslation(token, targetMwMessage.title, text, "Made with Telegram Bot",
         () => {
-            user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
+		if(!user.translatedTgMessages[tgMsg.message_id]) {
             user.currentMwMessageIndex++;
 
             db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
@@ -521,8 +521,9 @@ function publishTrans(user, tgMsg, targetMwMessage) {
                 if (error !== null)
                     return;
             });
-
             trans(user, tgMsg);
+		}
+            user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
         }
     );
 }
