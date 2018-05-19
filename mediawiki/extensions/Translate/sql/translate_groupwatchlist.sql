@@ -7,5 +7,5 @@ CREATE TABLE /*$wgDBprefix*/translate_groupwatchlist (
 	-- Key to user.user_id
 	tgw_user INTEGER NOT NULL,
 	tgw_group varchar(200) binary NOT NULL,
-	tgw_notificationtimestamp BLOB
+	tgw_notificationtimestamp varbinary(14)
 ) /*$wgDBTableOptions*/;

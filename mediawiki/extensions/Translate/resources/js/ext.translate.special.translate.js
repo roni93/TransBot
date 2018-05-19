@@ -299,7 +299,7 @@
 				at: 'right+80 bottom+5'
 			};
 		}
-		$( '.tux-breadcrumb__item--aggregate' ).msggroupselector( { // TODO add button, see watchlist js file
+		$( '.tux-breadcrumb__item--aggregate' ).msggroupselector( {
 			onSelect: mw.translate.changeGroup,
 			language: state.language,
 			position: position,
@@ -312,7 +312,7 @@
 			var api = new mw.Api(),
 				params = {
 					action: 'groupwatch',
-					messagegroup: $( '.grouptitle' ).eq( -2 ).data( 'msggroupid' )
+					messagegroup: $( '.grouptitle.grouplink' ).last().data( 'msggroupid' )
 				},
 				afterAction = 'unwatch',
 				afterTitle = mw.message( 'translate-msggroupselector-unwatch' ).text(),
@@ -328,10 +328,13 @@
 			}
 
 			api.postWithToken( 'watch', params ).done( function () {
-				$watchTrigger.data( 'action', afterAction );
-				$watchTrigger.prop( 'title', afterTitle );
-				$watchTrigger.removeClass( 'loading' );
-				$watchTrigger.prop( 'id', 'tux-' + afterAction );
+				$watchTrigger
+					.data( 'action', afterAction )
+					.prop( {
+						title: afterTitle,
+						id: 'tux-' + afterAction
+					} )
+					.removeClass( 'loading' );
 			} ).fail( function () {
 				// Report to user about the error
 				mw.notify( errorMsg, {

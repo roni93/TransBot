@@ -32,16 +32,11 @@ class ApiGroupWatch extends ApiBase {
 			}
 		}
 
-        $res = $this->watchMessageGroup( $messageGroup, $user, $requestParams);
+        $res = $this->watchMessageGroup( $messageGroup, $user, $requestParams );
 		$this->getResult()->addValue( null, $this->getModuleName(), $res );
 	}
 
-	private function watchMessageGroup( $messageGroup, User $user, array $params) {
-		// Only logged in user can have a watchlist
-		if ( $user->isAnon() ) {
-			return false;
-		}
-
+	private function watchMessageGroup( $messageGroup, User $user, array $params ) {
 		$res = [ 'messagegroup' => $messageGroup ];
 
 		$dbw = wfGetDB( DB_MASTER );
@@ -87,17 +82,14 @@ class ApiGroupWatch extends ApiBase {
                 ApiBase::PARAM_TYPE => 'string',
 				ApiBase::PARAM_REQUIRED => true,
             ],
-			'continue' => [
-				ApiBase::PARAM_HELP_MSG => 'api-help-param-continue',
-			],
 		];
 	}
 
 	protected function getExamplesMessages() {
 		return [
-			'action=groupwatch&messagegroup=page-Test_page&token=123ABC'
+			'action=groupwatch&format=json&messagegroup=page-Test_page&token=123ABC'
 			=> 'apihelp-groupwatch-example-watch',
-			'action=groupwatch&messagegroup=Main_Page&unwatch=&token=123ABC'
+			'action=groupwatch&format=json&messagegroup=Main_Page&unwatch=&token=123ABC'
 			=> 'apihelp-groupwatch-example-unwatch'
 		];
 	}

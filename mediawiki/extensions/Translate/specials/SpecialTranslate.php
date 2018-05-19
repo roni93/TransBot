@@ -373,8 +373,8 @@ class SpecialTranslate extends SpecialPage {
 			Html::element( 'a',
 				[
 					'class' => 'tux-breadcrumb__item--watch',
-					'id' => 'tux-watch',
-					'title' => $this->msg($watchLabel)->text(),
+					'id' => 'tux-' . $watchAction,
+					'title' => $this->msg( $watchLabel )->text(),
 					'data-action' => $watchAction,
 				]
 			) .
