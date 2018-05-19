@@ -1,5 +1,5 @@
-//-----------CONST-------------//
-"use strict";
+
+
 
 const DELAY = 3600000;
 const CLEAR_SESSION = 300000;
@@ -36,14 +36,18 @@ function processTgMessage(tgMsg) {
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
 
-            if (user.state === flags.LANG_SELECTED_MODE) {
-                setLanguage(tgMsg, user);
+            if (user.state === flags.LANG_SELECTED_MODE || user.state === flags.UPDATE_LANG) {
+                if(user.state === flags.LANG_SELECTED_MODE)
+
+                    setLanguage(tgMsg,user, false);
+                else
+                    setLanguage(tgMsg, user, true);
+
                 return;
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-                console.log(user.currentMwMessageIndex)
-                console.log(targetMwMessage)
+
 
                 publishTrans(user, tgMsg, targetMwMessage);
                 return;
@@ -95,8 +99,13 @@ tgBot.on("callback_query", (tgMsg) => {
         initNewUserLang(tgMsg, user, false, () => {
         })
     }
+    if(tgMsg.data ==="update-lang"){
+        user.state = flags.UPDATE_LANG;
+        tgBot.sendMessage(user.id, "Please type your language:");
+    }
     if (user.state === flags.LANG_MODE) {
-        langSelected(user, tgMsg, true);
+        console.log(tgMsg)
+        langSelected(user, tgMsg, true, false);
     }
     if (user.state === flags.READY_MODE && tgMsg.data === "start-trans") {
         trans(user, tgMsg)
@@ -192,9 +201,8 @@ function breakPoint(tgMsg, user, flag) {
     }
 }
 
-function setLanguage(tgMsg) {
+function setLanguage(tgMsg,user,flag) {
 
-    let user = registeredUsers[tgMsg.from.id];
     if (user !== undefined) {
         let text = tgMsg.text;
 
@@ -217,7 +225,7 @@ function setLanguage(tgMsg) {
                     user.state = flags.LANG_MODE;
                     user.lang = Object.keys(arg.languagesearch)[0];
                     langApi.addNewLang(tgMsg, user.lang);
-                    langSelected(user, tgMsg, false);
+                    langSelected(user, tgMsg, false, flag);
                 }
                 else {
                     const inlineKeyboard = [];
@@ -280,14 +288,28 @@ function registerToDB(tgMsg, user) {
     });
 }
 
-function langSelected(user, tgMsg, flag) {
+function langSelected(user, tgMsg, flag, flag_update) {
     if (flag) {
         langApi.addNewLang(tgMsg, tgMsg.data);
         user.lang = tgMsg.data;
     }
     tgBot.sendMessage(user.id, "Your language set to *" + user.fullLang[user.lang] + "*", {parse_mode: "markdown"});
     delete user.fullLang;
-    registerToDB(tgMsg, user);
+    if(flag_update){
+        console.log(user);
+        db.all(`UPDATE user SET user_language = ${JSON.stringify(user.lang)} WHERE user_telegram_id = ${user.id}  ;`, (error) => {
+            if (error !== null)
+            {
+                return;
+            }
+            user.state = flags.READY_MODE;
+
+            helpFunction(tgMsg);
+            return;
+        });
+    }
+    else
+        registerToDB(tgMsg, user);
     processTgMessage(tgMsg)
 }
 
@@ -311,7 +333,7 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
                 if (error !== null)
                     return;
                 user.lang = rows[0].user_language;
-                user.state = flags.READY_MODE
+                user.state = flags.READY_MODE;
                 breakPoint(tgMsg, user, false);
                 return user;
             });
@@ -572,9 +594,8 @@ function helpFunction(tgMsg) {
                     [{text: 'Instructions', callback_data: 'instructions'}, {
                         text: 'Translate',
                         callback_data: 'back-trans'
-                    },{
-                        text: 'SIGN OUT', callback_data: 'signout'
-                    }]]
+                    }],[{
+                        text: 'SIGN OUT', callback_data: 'signout'},{text:"Change langauge", callback_data: "update-lang"}]]
             })
         };
     }

@@ -19,9 +19,9 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
                 format: "json",
                 prop: "",
                 list: "messagecollection",
-                mcgroup: "ext-0-wikimedia",
+                mcgroup: "tsint-0-all",
                 mclanguage: languageCode,
-                mclimit: 10, // TODO: Make configurable
+                mclimit: 5, // TODO: Make configurable
                 mcfilter: "!optional|!ignored|!translated"
             }
         }, (error, response, body) => {
@@ -36,63 +36,63 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
 
 exports.addTranslation = function (token, title, translation, summary, cb) {
 
-    // const request_data = {
-    //     url: apiUrl + "?action=query&format=json&meta=tokens",
-    //     method: 'POST',
-    //     data: {}
-    // };
-    //
-    // request({
-    //         url: request_data.url,
-    //         method: request_data.method,
-    //         form: request_data.data,
-    //         headers: auth.toHeader(auth.authorize(request_data, token))
-    //     }, function (error, response, body) {
-    //
-    //         console.log("Edit token request over");
-    //
-    //         if (error || response.statusCode !== 200) {
-    //             console.log("Error getting edit token");
-    //             console.log(`statusCode: ${response.statusCode}`);
-    //             console.log(`error: ${error}`);
-    //
-    //             return;
-    //         }
-    //         console.log(body);
-    //         body = JSON.parse(body);
-    //
-    //         const mwEditToken = body.query.tokens.csrftoken;
-    //         console.log(`Got edit token ${mwEditToken}`);
-    //
-    //         const request_data2 = {
-    //             url: apiUrl + "?action=edit&format=json&title=" + title + "&text=" + translation + "&summery=" + summary + "&tags=TelegramBot",
-    //             method: 'POST',
-    //             data: {token: mwEditToken}
-    //         };
-    //
-    //         request({
-    //             url: request_data2.url,
-    //             method: request_data2.method,
-    //             form: request_data2.data,
-    //             headers: auth.toHeader(auth.authorize(request_data2, token))
-    //         }, function (error, response, body) {
-    //             console.log("Edit request over");
-    //             if (error || response.statusCode !== 200) {
-    //                 console.log("Error editing");
-    //                 console.log(`statusCode: ${response.statusCode}`);
-    //                 console.log(`error: ${error}`);
-    //                 return;
-    //             }
-    //
-    //
-    //             console.log("Translation published");
-    //
-    //             cb();
-    //         });
-    //     }
-    // );
-    console.log("Translation published");
-    cb();
+    const request_data = {
+        url: apiUrl + "?action=query&format=json&meta=tokens",
+        method: 'POST',
+        data: {}
+    };
+
+    request({
+            url: request_data.url,
+            method: request_data.method,
+            form: request_data.data,
+            headers: auth.toHeader(auth.authorize(request_data, token))
+        }, function (error, response, body) {
+
+            console.log("Edit token request over");
+
+            if (error || response.statusCode !== 200) {
+                console.log("Error getting edit token");
+                console.log(`statusCode: ${response.statusCode}`);
+                console.log(`error: ${error}`);
+
+                return;
+            }
+            console.log(body);
+            body = JSON.parse(body);
+
+            const mwEditToken = body.query.tokens.csrftoken;
+            console.log(`Got edit token ${mwEditToken}`);
+
+            const request_data2 = {
+                url: apiUrl + "?action=edit&format=json&title=" + title + "&text=" + translation + "&summery=" + summary + "&tags=TelegramBot",
+                method: 'POST',
+                data: {token: mwEditToken}
+            };
+
+            request({
+                url: request_data2.url,
+                method: request_data2.method,
+                form: request_data2.data,
+                headers: auth.toHeader(auth.authorize(request_data2, token))
+            }, function (error, response, body) {
+                console.log("Edit request over");
+                if (error || response.statusCode !== 200) {
+                    console.log("Error editing");
+                    console.log(`statusCode: ${response.statusCode}`);
+                    console.log(`error: ${error}`);
+                    return;
+                }
+
+
+                console.log("Translation published");
+
+                cb();
+            });
+        }
+    );
+    // console.log("Translation published");
+    // cb();
 };
 
 exports.getDocumentation = function (title, cb) {
@@ -190,11 +190,10 @@ exports.languageSearch = function (languageString, callback) {
                 search: languageString
             }
         }, (error, response, body) => {
+
             body = JSON.parse(body);
             callback(body);
         }
     );
 
 };
-
-

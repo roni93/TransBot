@@ -4,5 +4,6 @@
  "LANG_SELECTED_MODE" : "langSelected",
  "RESPONSE_MODE" : "waitForTranslation",
  "READY_MODE" : "readyToTrans",
- "VERIFIER_MODE" : "waitForVerifier"
+ "VERIFIER_MODE" : "waitForVerifier",
+ "UPDATE_LANG": "updatelanguage"
 }
