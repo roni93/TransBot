@@ -1,5 +1,4 @@
-
-
+"use strict";
 
 const DELAY = 3600000;
 const CLEAR_SESSION = 300000;
@@ -13,7 +12,7 @@ const tgFancyBot = require("tgfancy");
 const jsonfile = require("jsonfile");
 
 const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("db/telegram-bot.db");
+const db = new sqlite3.Database("./telegram-bot.db");
 
 let config;
 let flags;
@@ -26,7 +25,13 @@ try {
 
 const tgBot = new tgFancyBot(config.token, {polling: true});
 
+const express = require('express');
+const app = express();
+const port = parseInt(process.env.PORT, 10);
+
+
 let registeredUsers = {};
+let dictTokenToId ={};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
 notification.turnOnNotification(tgBot);
@@ -42,26 +47,19 @@ function processTgMessage(tgMsg) {
                     setLanguage(tgMsg,user, false);
                 else
                     setLanguage(tgMsg, user, true);
-
                 return;
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-
-
                 publishTrans(user, tgMsg, targetMwMessage);
                 return;
 
             }
             else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state!==flags.RESPONSE_MODE) {
-
-                helpFunction(tgMsg);
+                helpFunction(user);
                 return;
             }
-            else {
-                //
 
-            }
 
         }
     });
@@ -70,9 +68,9 @@ function processTgMessage(tgMsg) {
 
 tgBot.on("callback_query", (tgMsg) => {
     setTimeout(TimeOut, CLEAR_SESSION);
-    let user = registeredUsers[tgMsg.from.id];
+    const user = registeredUsers[tgMsg.from.id];
     if (tgMsg.data === "help") {
-        helpFunction(tgMsg);
+        helpFunction(user);
     }
     if (tgMsg.data === 'set-language') {
         tgBot.sendMessage(user.id, "Please type your language:");
@@ -104,7 +102,6 @@ tgBot.on("callback_query", (tgMsg) => {
         tgBot.sendMessage(user.id, "Please type your language:");
     }
     if (user.state === flags.LANG_MODE) {
-        console.log(tgMsg)
         langSelected(user, tgMsg, true, false);
     }
     if (user.state === flags.READY_MODE && tgMsg.data === "start-trans") {
@@ -131,7 +128,7 @@ function showMT(user) {
 
 function notifyUser(tgMsg, user) {
     tgBot.sendMessage(user.id, "Some explanation...");
-    helpFunction(tgMsg)
+    helpFunction(user)
 }
 
 function getUser(tgMsg, cb) {
@@ -275,8 +272,9 @@ function registerToDB(tgMsg, user) {
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type ' _/help_ ' for for further instruction", {parse_mode: "markdown"});
 
-    const url = OauthApi.OauthLogIn((signUrl, req_data) => {
+    OauthApi.OauthLogIn((signUrl, req_data) => {
         registeredUsers[user.id].req_data = req_data;
+        dictTokenToId[req_data.oauth_token] = user;
         const tgMsgOptions = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
@@ -298,13 +296,12 @@ function langSelected(user, tgMsg, flag, flag_update) {
     if(flag_update){
         console.log(user);
         db.all(`UPDATE user SET user_language = ${JSON.stringify(user.lang)} WHERE user_telegram_id = ${user.id}  ;`, (error) => {
-            if (error !== null)
-            {
+            if (error !== null) {
                 return;
             }
             user.state = flags.READY_MODE;
 
-            helpFunction(tgMsg);
+            helpFunction(user);
             return;
         });
     }
@@ -345,8 +342,7 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
     });
 }
 
-function addUserToDbByTgMsg(tgMsg, lang, token) {
-    const userID = tgMsg.from.id;
+function addUserToDbByTgMsg(userID, lang, token) {
     const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, verifier, oauth_token, oauth_token_secret) VALUES 
     (${userID},${JSON.stringify(lang)},${JSON.stringify(token)},1,1);`;
     db.run(insertStmtStr, (error) => {
@@ -417,8 +413,6 @@ function showUnTrans(user, tgMsg) {
                 tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
             }
         });
-
-
     });
 }
 
@@ -498,7 +492,7 @@ function publishTrans(user, tgMsg, targetMwMessage) {
 
     const text = tgMsg.text;
     if (tgMsg.text === "/help"){
-        return helpFunction(tgMsg);
+        return helpFunction(user);
 
     }
 
@@ -508,21 +502,21 @@ function publishTrans(user, tgMsg, targetMwMessage) {
     };
     mediaWikiAPI.addTranslation(token, targetMwMessage.title, text, "Made with Telegram Bot",
         () => {
-		if(!user.translatedTgMessages[tgMsg.message_id]) {
-            user.currentMwMessageIndex++;
+            if(!user.translatedTgMessages[tgMsg.message_id]) {
+                user.currentMwMessageIndex++;
 
-            db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
+                db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
 
-                if (error !== null)
-                    return;
-            });
-            db.all("SELECT num_of_trans FROM user WHERE user_telegram_id=" + user.id + ";", (error, rows) => {
-                notification.mileStones(user, rows[0].num_of_trans);
-                if (error !== null)
-                    return;
-            });
-            trans(user, tgMsg);
-		}
+                    if (error !== null)
+                        return;
+                });
+                db.all("SELECT num_of_trans FROM user WHERE user_telegram_id=" + user.id + ";", (error, rows) => {
+                    notification.mileStones(user, rows[0].num_of_trans);
+                    if (error !== null)
+                        return;
+                });
+                trans(user, tgMsg);
+            }
             user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
         }
     );
@@ -536,42 +530,53 @@ tgBot.on("edited_message", (tgMsg) => {
     });
 });
 
-function oauthLogin(tgMsg) {
-    if (tgMsg.text === "/start") {
 
-        return helpFunction(tgMsg);
-    }
-    getUser(tgMsg, (user) => {
+app.use('/translate-bot/auth', function (req, res) {
+    const verifier = req.query.oauth_verifier;
+    const token = req.query.oauth_token;
+
+    if (verifier !== undefined && token !== undefined){
+        const user = dictTokenToId[token];
+
         if (user !== undefined) {
-
             if (user.state === flags.VERIFIER_MODE) {
-                addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
-                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
+                addUserToDbByTgMsg(user.id, user.lang, verifier);
+                OauthApi.OauthLogIn2(verifier, user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
                     user["oauth_token_secret"] = perm_data.oauth_token_secret;
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
-                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)} 
-                    WHERE user_telegram_id = '${user.id}';`;
+                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)}
+                WHERE user_telegram_id = '${user.id}';`;
                     db.run(insertStmtStr, (error) => {
-                        if (error !== null) {
-                            console.log(`updating user ${tgMsg.from.id} to the database failed: ${error}`);
-                        }
+
                     });
                 });
                 user.state = flags.READY_MODE;
+                tgBot.sendMessage(user.id, "You have successfully logged in");
+                helpFunction(user);
+
             }
         }
-    });
-}
+        helpFunction(user);
 
-tgBot.onText(/start/, oauthLogin);
+        res.redirect('https://telegram.me/ronitranslatebot');
+        helpFunction(user);
+
+    }
+    // res.send("Something wen't wrong. Please try again.");
+});
+
+
+
+
+app.listen(port);
+
 tgBot.onText(/.*/, processTgMessage);
 
 
-function helpFunction(tgMsg) {
-    let user = registeredUsers[tgMsg.from.id];
+function helpFunction(user) {
     if (user === undefined){
         return;
     }
