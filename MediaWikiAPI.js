@@ -19,9 +19,9 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
                 format: "json",
                 prop: "",
                 list: "messagecollection",
-                mcgroup: "ext-0-wikimedia",
+                mcgroup: "tsint-0-all",
                 mclanguage: languageCode,
-                mclimit: 10, // TODO: Make configurable
+                mclimit: 5, // TODO: Make configurable
                 mcfilter: "!optional|!ignored|!translated"
             }
         }, (error, response, body) => {
@@ -36,12 +36,12 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
 
 exports.addTranslation = function (token, title, translation, summary, cb) {
 
-    // const request_data = {
-    //     url: apiUrl + "?action=query&format=json&meta=tokens",
-    //     method: 'POST',
-    //     data: {}
-    // };
-    //
+    const request_data = {
+        url: apiUrl + "?action=query&format=json&meta=tokens",
+        method: 'POST',
+        data: {}
+    };
+
     // request({
     //         url: request_data.url,
     //         method: request_data.method,
@@ -190,11 +190,10 @@ exports.languageSearch = function (languageString, callback) {
                 search: languageString
             }
         }, (error, response, body) => {
+
             body = JSON.parse(body);
             callback(body);
         }
     );
 
 };
-
-
