@@ -1,5 +1,5 @@
 const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("db/telegram-bot.db");
+const db = new sqlite3.Database("./telegram-bot.db");
 
 let tgBotglobal;
 
