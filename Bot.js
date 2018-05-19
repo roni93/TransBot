@@ -40,7 +40,7 @@ function processTgMessage(tgMsg) {
     setTimeout(TimeOut, CLEAR_SESSION);
     getUser(tgMsg, (user) => {
         if (user !== undefined) {
-
+            
             if (user.state === flags.LANG_SELECTED_MODE || user.state === flags.UPDATE_LANG) {
                 if(user.state === flags.LANG_SELECTED_MODE)
 
@@ -419,6 +419,18 @@ function showUnTrans(user, tgMsg) {
 
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
+    // if (user.currentMwMessageIndex === 3){
+    //     const tgMsgOptions = {
+    //         reply_markup: JSON.stringify({
+    //             inline_keyboard: [
+    //                 [{text: 'Lets start', callback_data: 'instructions'}, {
+    //                     text: 'Not now',
+    //                     callback_data: 'back-trans'}]]
+    //         })
+    //     };
+    //
+    // tgBot.sendMessage(user.id, "Hey! you got some new messages to translate", tgMsgOptions);
+    // }
 
     if (user.currentMwMessageIndex === 5 || user.loadedMwMessages.length === 0) {
         loadUntranslated(user, (loadedMwMessages) => {
@@ -569,10 +581,7 @@ app.use('/translate-bot/auth', function (req, res) {
 });
 
 
-
-
 app.listen(port);
-
 tgBot.onText(/.*/, processTgMessage);
 
 
