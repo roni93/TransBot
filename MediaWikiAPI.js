@@ -19,9 +19,9 @@ exports.getUntranslatedMessages = function (languageCode, cb) {
                 format: "json",
                 prop: "",
                 list: "messagecollection",
-                mcgroup: "tsint-0-all",
+                mcgroup: "out-osm-0-all",
                 mclanguage: languageCode,
-                mclimit: 5, // TODO: Make configurable
+                mclimit: 10, // TODO: Make configurable
                 mcfilter: "!optional|!ignored|!translated"
             }
         }, (error, response, body) => {
@@ -84,7 +84,6 @@ exports.addTranslation = function (token, title, translation, summary, cb) {
     //                 return;
     //             }
     //
-    //
     //             console.log("Translation published");
     //
     //             cb();
@@ -106,7 +105,7 @@ exports.getDocumentation = function (title, cb) {
             }
         }, (error, response, body) => {
             const translationaids = JSON.parse(body);
-
+            console.log(body);
 
             // TODO: Handle the case that it doesn't exist, invalid, etc.
             cb(translationaids.helpers.documentation.value);
@@ -180,7 +179,24 @@ exports.getTranslationMemory = function (title, cb) {
         }
     );
 };
-
+exports.groupSearch = function (cb) {
+    request.post({
+            url: apiUrl,
+            form: {
+                action: "query",
+                "format": "json",
+                "meta": "messagegroups",
+                "callback": "",
+                "mgprop": "id"
+            }
+        }, (error, response, body) => {
+            console.log(body.substring(5, body.length-1));
+            body = JSON.parse(body.substring(5, body.length-1));
+            console.log(body.query);
+            // callback(body);
+        }
+    );
+};
 exports.languageSearch = function (languageString, callback) {
     request.post({
             url: apiUrl,
