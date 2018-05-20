@@ -150,8 +150,7 @@ exports.getMessageGroups= function(cb){
             form: {
                 action: "query",
                 format: "json",
-                meta: "messagegroup",
-		mgprop: "id%7Clabel"
+                meta: "messagegroups"
             }
         }, (error, response, body) => {
             cb(JSON.parse(body).query.messagegroups);
