@@ -24,11 +24,7 @@ return function (languageCode, cb, projCode=null) {
                 format: "json",
                 prop: "",
                 list: "messagecollection",
-<<<<<<< HEAD
                 mcgroup: projectCode,
-=======
-                mcgroup: "out-osm-0-all",
->>>>>>> upstream/master
                 mclanguage: languageCode,
                 mclimit: 10, // TODO: Make configurable
                 mcfilter: "!optional|!ignored|!translated"
