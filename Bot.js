@@ -131,10 +131,13 @@ tgBot.on("callback_query", (tgMsg) => {
 });
 
 function setProject(user, tgMsg){
-	mediaWikiAPI.getMessageGroups(result => {let match=result.filter(item => item.label==tgMsg.text);
+	mediaWikiAPI.getMessageGroups(result => {
+	let match=result.filter(item => item.label==tgMsg.text);
 	if(match.length){
 		mediaWikiAPI.getUntranslatedMessages(null, null, match[0].id);
 		user.state = flags.RESPONSE_MODE;
+		tgBot.sendMessage(user.id, "You are now translating " + match[0].label);
+		trans(user, tgMsg);
 	}
 	else{
 		tgBot.sendMessage(user.id, "Could not find the specified project, please use it's official name"); 
