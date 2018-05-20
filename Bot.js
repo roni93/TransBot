@@ -1,5 +1,4 @@
-
-
+"use strict";
 
 const DELAY = 3600000;
 const CLEAR_SESSION = 300000;
@@ -13,7 +12,7 @@ const tgFancyBot = require("tgfancy");
 const jsonfile = require("jsonfile");
 
 const sqlite3 = require("sqlite3").verbose();
-const db = new sqlite3.Database("db/telegram-bot.db");
+const db = new sqlite3.Database("./telegram-bot.db");
 
 let config;
 let flags;
@@ -26,7 +25,13 @@ try {
 
 const tgBot = new tgFancyBot(config.token, {polling: true});
 
+const express = require('express');
+const app = express();
+const port = parseInt(process.env.PORT, 10);
+
+
 let registeredUsers = {};
+let dictTokenToId = {};
 
 setInterval(cleaRegistered, DELAY); //clears the registered users
 notification.turnOnNotification(tgBot);
@@ -37,25 +42,25 @@ function processTgMessage(tgMsg) {
         if (user !== undefined) {
 
             if (user.state === flags.LANG_SELECTED_MODE || user.state === flags.UPDATE_LANG) {
-                if(user.state === flags.LANG_SELECTED_MODE)
+                if (user.state === flags.LANG_SELECTED_MODE)
 
-                    setLanguage(tgMsg,user, false);
+                    setLanguage(tgMsg, user, false);
                 else
                     setLanguage(tgMsg, user, true);
-
                 return;
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-
-
+                if(targetMwMessage === undefined){
+                    helpFunction(tgMsg);
+                    return;
+                }
                 publishTrans(user, tgMsg, targetMwMessage);
                 return;
 
             }
-            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state!==flags.RESPONSE_MODE) {
-
-                helpFunction(tgMsg);
+            else if ((user.state === flags.READY_MODE || tgMsg.text === "/help") && user.state !== flags.RESPONSE_MODE) {
+                helpFunction(user);
                 return;
             }
             else if (user.state === flags.SET_PROJECT) {
@@ -63,9 +68,7 @@ function processTgMessage(tgMsg) {
 	    }
             else {
                 //
-
-            }
-
+	    }
         }
     });
 }
@@ -73,9 +76,9 @@ function processTgMessage(tgMsg) {
 
 tgBot.on("callback_query", (tgMsg) => {
     setTimeout(TimeOut, CLEAR_SESSION);
-    let user = registeredUsers[tgMsg.from.id];
+    const user = registeredUsers[tgMsg.from.id];
     if (tgMsg.data === "help") {
-        helpFunction(tgMsg);
+        helpFunction(user);
     }
     if (tgMsg.data === 'set-language') {
         tgBot.sendMessage(user.id, "Please type your language:");
@@ -84,12 +87,12 @@ tgBot.on("callback_query", (tgMsg) => {
     if (tgMsg.data === "instructions") {
         notifyUser(tgMsg, user)
     }
-    if(tgMsg.data === "signout"){
+    if (tgMsg.data === "signout") {
         tgBot.sendMessage(user.id, "You have been signed out successfully");
 
         db.all("DELETE FROM user WHERE user_telegram_id = " + user.id + ";", (error) => {
             delete registeredUsers[user.id];
-            if (error !== null){
+            if (error !== null) {
                 return;
 
             }
@@ -102,15 +105,15 @@ tgBot.on("callback_query", (tgMsg) => {
         initNewUserLang(tgMsg, user, false, () => {
         })
     }
-    if(tgMsg.data ==="update-lang"){
+    if (tgMsg.data === "update-lang") {
         user.state = flags.UPDATE_LANG;
         tgBot.sendMessage(user.id, "Please type your language:");
     }
     if (user.state === flags.LANG_MODE) {
-        console.log(tgMsg)
         langSelected(user, tgMsg, true, false);
     }
     if (user.state === flags.READY_MODE && tgMsg.data === "start-trans") {
+
         trans(user, tgMsg)
     }
     if (user.state === flags.RESPONSE_MODE && tgMsg.data === "doc") {
@@ -146,14 +149,14 @@ function showMT(user) {
 
 function notifyUser(tgMsg, user) {
     tgBot.sendMessage(user.id, "Some explanation...");
-    helpFunction(tgMsg)
+    helpFunction(user)
 }
 
 function getUser(tgMsg, cb) {
     let user = registeredUsers[tgMsg.from.id];
     if (user === undefined) {
-        if(tgMsg.text ==='/help'){
-            tgMsg.text="start";
+        if (tgMsg.text === '/help') {
+            tgMsg.text = "start";
             processTgMessage(tgMsg);
             return;
         }
@@ -180,14 +183,15 @@ function skipMsg(user, tgMsg) {
     trans(user, tgMsg);
 }
 
+
 function showDocumentation(user) {
     const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
     const title = targetMwMessage.title;
     mediaWikiAPI.getDocumentation(title, (documentation) => {
-        tgBot.sendMessage(
-            user.id,
-            documentation
-        );
+        if (documentation === null) {
+            documentation = "*There is no documentation for this message*"
+        }
+        tgBot.sendMessage(user.id,documentation,{parse_mode: "Markdown"});
     });
 }
 
@@ -216,7 +220,7 @@ function breakPoint(tgMsg, user, flag) {
     }
 }
 
-function setLanguage(tgMsg,user,flag) {
+function setLanguage(tgMsg, user, flag) {
 
     if (user !== undefined) {
         let text = tgMsg.text;
@@ -290,8 +294,9 @@ function registerToDB(tgMsg, user) {
     //should be i18n
     tgBot.sendMessage(user.id, "If it's not, please type ' _/help_ ' for for further instruction", {parse_mode: "markdown"});
 
-    const url = OauthApi.OauthLogIn((signUrl, req_data) => {
+    OauthApi.OauthLogIn((signUrl, req_data) => {
         registeredUsers[user.id].req_data = req_data;
+        dictTokenToId[req_data.oauth_token] = user;
         const tgMsgOptions = {
             reply_markup: JSON.stringify({
                 inline_keyboard: [[{text: 'SIGN IN', url: signUrl}]]
@@ -310,16 +315,19 @@ function langSelected(user, tgMsg, flag, flag_update) {
     }
     tgBot.sendMessage(user.id, "Your language set to *" + user.fullLang[user.lang] + "*", {parse_mode: "markdown"});
     delete user.fullLang;
-    if(flag_update){
-        console.log(user);
+    if (flag_update) {
+        user.currentMwMessageIndex = 0;
+        user.loadedMwMessages = [];
+        user.loadedTranslationMemory = {};
+        user.translatedTgMessages = {};
+        user.mt = "";
         db.all(`UPDATE user SET user_language = ${JSON.stringify(user.lang)} WHERE user_telegram_id = ${user.id}  ;`, (error) => {
-            if (error !== null)
-            {
+            if (error !== null) {
                 return;
             }
             user.state = flags.READY_MODE;
 
-            helpFunction(tgMsg);
+            helpFunction(user);
             return;
         });
     }
@@ -360,8 +368,7 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
     });
 }
 
-function addUserToDbByTgMsg(tgMsg, lang, token) {
-    const userID = tgMsg.from.id;
+function addUserToDbByTgMsg(userID, lang, token) {
     const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, verifier, oauth_token, oauth_token_secret) VALUES 
     (${userID},${JSON.stringify(lang)},${JSON.stringify(token)},1,1);`;
     db.run(insertStmtStr, (error) => {
@@ -393,7 +400,6 @@ function showUnTrans(user, tgMsg) {
         breakPoint(tgMsg, user, false);
         return;
     }
-    console.log(targetMwMessage.title);
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
 
         targetMwMessage.translationMemory = translationMemory;
@@ -432,22 +438,28 @@ function showUnTrans(user, tgMsg) {
                 tgBot.sendMessage(user.id, targetMwMessage.definition, tgMsgOptions);
             }
         });
-
-
     });
 }
 
 
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
+    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
 
-    if (user.currentMwMessageIndex === 5 || user.loadedMwMessages.length === 0) {
-        loadUntranslated(user, (loadedMwMessages) => {
-            user.state = flags.RESPONSE_MODE;
-            user.loadedMwMessages = loadedMwMessages;
-            showUnTrans(user, tgMsg);
+        loadUntranslated(user, (loadedMwMessages, flag) => {
+            if(flag){
+                user.state = flags.RESPONSE_MODE;
+                user.loadedMwMessages = loadedMwMessages;
+                showUnTrans(user, tgMsg);
+
+            }
+            else {
+            	tgBot.sendMessage(user.id, "Nothing to translate!\nWhich project would you like to translate next?");
+	    	user.state=flags.SET_PROJECT;
+                //processTgMessage(tgMsg);
+            }
+
         });
-        console.log("load");
     }
     else {
         showUnTrans(user, tgMsg);
@@ -462,10 +474,10 @@ function loadUntranslated(user, cb) {
         });
         user.currentMwMessageIndex = 0;
         if (user.loadedMwMessages.length) {
-            cb(user.loadedMwMessages)
-        } else
-            tgBot.sendMessage(user.id, "Nothing to translate!\nWhich project would you like to translate next?");
-	    user.state=flags.SET_PROJECT;
+            cb(user.loadedMwMessages,true)
+        } else {
+            cb(user.loadedMwMessages,false)
+        }
     });
 }
 
@@ -512,8 +524,8 @@ function cacheTranslationMemory(user, targetMwMessage, i, text) {
 function publishTrans(user, tgMsg, targetMwMessage) {
 
     const text = tgMsg.text;
-    if (tgMsg.text === "/help"){
-        return helpFunction(tgMsg);
+    if (tgMsg.text === "/help") {
+        return helpFunction(user);
 
     }
 
@@ -523,21 +535,21 @@ function publishTrans(user, tgMsg, targetMwMessage) {
     };
     mediaWikiAPI.addTranslation(token, targetMwMessage.title, text, "Made with Telegram Bot",
         () => {
-		if(!user.translatedTgMessages[tgMsg.message_id]) {
-            user.currentMwMessageIndex++;
+            if (!user.translatedTgMessages[tgMsg.message_id]) {
+                user.currentMwMessageIndex++;
 
-            db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
+                db.all("UPDATE user SET num_of_trans=num_of_trans+1 WHERE user_telegram_id = " + user.id + ";", (error) => {
 
-                if (error !== null)
-                    return;
-            });
-            db.all("SELECT num_of_trans FROM user WHERE user_telegram_id=" + user.id + ";", (error, rows) => {
-                notification.mileStones(user, rows[0].num_of_trans);
-                if (error !== null)
-                    return;
-            });
-            trans(user, tgMsg);
-		}
+                    if (error !== null)
+                        return;
+                });
+                db.all("SELECT num_of_trans FROM user WHERE user_telegram_id=" + user.id + ";", (error, rows) => {
+                    notification.mileStones(user, rows[0].num_of_trans);
+                    if (error !== null)
+                        return;
+                });
+                trans(user, tgMsg);
+            }
             user.translatedTgMessages[tgMsg.message_id] = targetMwMessage;
         }
     );
@@ -551,43 +563,50 @@ tgBot.on("edited_message", (tgMsg) => {
     });
 });
 
-function oauthLogin(tgMsg) {
-    if (tgMsg.text === "/start") {
 
-        return helpFunction(tgMsg);
-    }
-    getUser(tgMsg, (user) => {
+app.use('/translate-bot/auth', function (req, res) {
+    const verifier = req.query.oauth_verifier;
+    const token = req.query.oauth_token;
+
+    if (verifier !== undefined && token !== undefined) {
+        const user = dictTokenToId[token];
+
         if (user !== undefined) {
-
             if (user.state === flags.VERIFIER_MODE) {
-                addUserToDbByTgMsg(tgMsg, user.lang, tgMsg.text.split(" ")[1]);
-                OauthApi.OauthLogIn2(tgMsg.text.split(" ")[1], user.req_data, (perm_data) => {
+                addUserToDbByTgMsg(user.id, user.lang, verifier);
+                OauthApi.OauthLogIn2(verifier, user.req_data, (perm_data) => {
                     user["oauth_token"] = perm_data.oauth_token;
                     user["oauth_token_secret"] = perm_data.oauth_token_secret;
 
                     const oauth_token0 = perm_data.oauth_token;
                     const oauth_token_secret0 = perm_data.oauth_token_secret;
-                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)} 
-                    WHERE user_telegram_id = '${user.id}';`;
+                    const insertStmtStr = `UPDATE user SET oauth_token = ${JSON.stringify(oauth_token0)},oauth_token_secret = ${JSON.stringify(oauth_token_secret0)}
+                WHERE user_telegram_id = '${user.id}';`;
                     db.run(insertStmtStr, (error) => {
-                        if (error !== null) {
-                            console.log(`updating user ${tgMsg.from.id} to the database failed: ${error}`);
-                        }
+
                     });
                 });
                 user.state = flags.READY_MODE;
+                tgBot.sendMessage(user.id, "You have successfully logged in");
+                helpFunction(user);
+
             }
         }
-    });
-}
 
-tgBot.onText(/start/, oauthLogin);
+        res.redirect('https://telegram.me/ronitranslatebot');
+
+    }
+    // res.send("Something wen't wrong. Please try again.");
+});
+
+
+app.listen(port);
+
 tgBot.onText(/.*/, processTgMessage);
 
 
-function helpFunction(tgMsg) {
-    let user = registeredUsers[tgMsg.from.id];
-    if (user === undefined){
+function helpFunction(user) {
+    if (user === undefined) {
         return;
     }
     let tgMsgOptions = {};
@@ -610,8 +629,9 @@ function helpFunction(tgMsg) {
                     [{text: 'Instructions', callback_data: 'instructions'}, {
                         text: 'Translate',
                         callback_data: 'back-trans'
-                    }],[{
-                        text: 'SIGN OUT', callback_data: 'signout'},{text:"Change langauge", callback_data: "update-lang"}]]
+                    }], [{
+                        text: 'SIGN OUT', callback_data: 'signout'
+                    }, {text: "Change langauge", callback_data: "update-lang"}]]
             })
         };
     }
