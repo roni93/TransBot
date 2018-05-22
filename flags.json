@@ -5,5 +5,6 @@
  "RESPONSE_MODE" : "waitForTranslation",
  "READY_MODE" : "readyToTrans",
  "VERIFIER_MODE" : "waitForVerifier",
- "UPDATE_LANG": "updatelanguage"
+ "UPDATE_LANG": "updatelanguage",
+ "SET_PROJECT": "setProject"
 }
