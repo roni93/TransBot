@@ -19,8 +19,8 @@ let flags;
 try {
     config = jsonfile.readFileSync("config.json");
     flags = jsonfile.readFileSync("flags.json");
-} catch (e) {
-    console.log(e);
+} catch (error) {
+    console.log(error);
 }
 
 const tgBot = new tgFancyBot(config.token, {polling: true});
@@ -51,7 +51,7 @@ function processTgMessage(tgMsg) {
             }
             else if (user.state === flags.RESPONSE_MODE) {
                 const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-                if(targetMwMessage === undefined){
+                if (targetMwMessage === undefined) {
                     helpFunction(tgMsg);
                     return;
                 }
@@ -149,7 +149,7 @@ function getUser(tgMsg, cb) {
         loadUserFromDbByTgMsg(tgMsg, user, () => {
             initNewUserLang(tgMsg, user, true, (language) => {
 
-                tgBot.sendMessage(user.id, `Your language is set to *${language[1]}*.\nIf I'm wrong, please type '_/help_' at any moment for further instructions.`,{parse_mode: "markdown"});
+                tgBot.sendMessage(user.id, `Your language is set to ${language[1]}.\nIf I'm wrong, please type '_/help_' at any moment for further instructions.`, {parse_mode: "markdown"});
                 user.lang = language[0];
                 registerToDB(tgMsg, user);
                 console.log(`user ${user.id} online.`);
@@ -171,14 +171,10 @@ function skipMsg(user, tgMsg) {
 
 
 function showDocumentation(user) {
-    const targetMwMessage = user.loadedMwMessages[user.currentMwMessageIndex];
-    const title = targetMwMessage.title;
-    mediaWikiAPI.getDocumentation(title, (documentation) => {
-        if (documentation === null) {
-            documentation = "*There is no documentation for this message*"
-        }
-        tgBot.sendMessage(user.id,documentation,{parse_mode: "Markdown"});
-    });
+
+    tgBot.sendMessage(user.id, user.doc, {parse_mode: "Markdown"});
+    user.doc = "";
+
 }
 
 function breakPoint(tgMsg, user, flag) {
@@ -299,7 +295,7 @@ function langSelected(user, tgMsg, flag, flag_update) {
         langApi.addNewLang(tgMsg, tgMsg.data);
         user.lang = tgMsg.data;
     }
-    tgBot.sendMessage(user.id, `Your language is set to *${user.fullLang[user.lang]}*.`, {parse_mode: "markdown"});
+    tgBot.sendMessage(user.id, `Your language is set to ${user.fullLang[user.lang]}.`, {parse_mode: "markdown"});
     delete user.fullLang;
     if (flag_update) {
         user.currentMwMessageIndex = 0;
@@ -355,8 +351,8 @@ function loadUserFromDbByTgMsg(tgMsg, user, cb) {
 }
 
 function addUserToDbByTgMsg(userID, lang, token) {
-    const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, verifier, oauth_token, oauth_token_secret) VALUES 
-    (${userID},${JSON.stringify(lang)},${JSON.stringify(token)},1,1);`;
+    const insertStmtStr = `INSERT INTO user (user_telegram_id, user_language, verifier, oauth_token, oauth_token_secret) VALUES
+                (${userID},${JSON.stringify(lang)},${JSON.stringify(token)},1,1);`;
     db.run(insertStmtStr, (error) => {
         if (error !== null) {
             console.log(`Adding user ${userID} to the database failed: ${error}`);
@@ -375,7 +371,8 @@ function initUser(tgMsg) {
         loadedMwMessages: [],
         loadedTranslationMemory: {},
         translatedTgMessages: {},
-        mt: ""
+        mt: "",
+        doc: ""
     };
 }
 
@@ -386,22 +383,26 @@ function showUnTrans(user, tgMsg) {
         breakPoint(tgMsg, user, false);
         return;
     }
+    const title = targetMwMessage.title;
+    mediaWikiAPI.getDocumentation(title, (documentation) => {
+        if (documentation !== null) {
+            user.doc = documentation
+        }
+    });
+
+
     mediaWikiAPI.getTranslationMemory(targetMwMessage.title, (translationMemory) => {
 
         targetMwMessage.translationMemory = translationMemory;
-
-        if (targetMwMessage.translationMemory.length === 0) {
-            //console.log(user.id, `No translation memory was found for "${targetMwMessage.title}"`);
-        }
         const inlineKeyboard = [];
         user.state = flags.RESPONSE_MODE;
-
-
-        inlineKeyboard.push([{text: "Documentation", callback_data: "doc"}, {
-            text: "Skip message",
-            callback_data: "skip"
-        }, {text: "Similar message", callback_data: "similar"}]);
-
+        inlineKeyboard.push([{text: "Skip message", callback_data: "skip"}]);
+        if (targetMwMessage.translationMemory.length > 0) {
+            inlineKeyboard[0].push({text: "Similar message", callback_data: "similar"});
+        }
+        if (user.doc !== "") {
+            inlineKeyboard[0].push({text: "Documentation", callback_data: "doc"});
+        }
 
         mediaWikiAPI.getMT(targetMwMessage.title, (flag, target) => {
             if (flag) {
@@ -433,7 +434,7 @@ function trans(user, tgMsg) {
     if (user.currentMwMessageIndex === user.loadedMwMessages.length || user.loadedMwMessages.length === 0) {
 
         loadUntranslated(user, (loadedMwMessages, flag) => {
-            if(flag){
+            if (flag) {
                 user.state = flags.RESPONSE_MODE;
                 user.loadedMwMessages = loadedMwMessages;
                 showUnTrans(user, tgMsg);
@@ -459,9 +460,9 @@ function loadUntranslated(user, cb) {
         });
         user.currentMwMessageIndex = 0;
         if (user.loadedMwMessages.length) {
-            cb(user.loadedMwMessages,true)
+            cb(user.loadedMwMessages, true)
         } else {
-            cb(user.loadedMwMessages,false)
+            cb(user.loadedMwMessages, false)
         }
 
     });
