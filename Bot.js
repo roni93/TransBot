@@ -428,7 +428,7 @@ function showUnTrans(user, tgMsg) {
 
 function trans(user, tgMsg) {
     user.state = flags.RESPONSE_MODE;
-    if (user.currentMwMessageIndex === 10 || user.loadedMwMessages.length === 0) {
+    if (user.currentMwMessageIndex === user.loadedMwMessages.length || user.loadedMwMessages.length === 0) {
 
         loadUntranslated(user, (loadedMwMessages, flag) => {
             if(flag){
