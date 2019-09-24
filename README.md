@@ -1,5 +1,4 @@
 # TransBot
-Description
 This is a Node.js service that can fetch untranslated messages from translatewiki.net and send translations to them using the Telegram chat network.
 
 Coding conventions
