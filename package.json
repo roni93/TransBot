@@ -30,7 +30,7 @@
     "express": "4.16.3"
   },
   "devDependencies": {
-    "eslint": "3.12.0",
+    "eslint": "6.6.0",
     "eslint-config-node-services": "~2.2.2",
     "eslint-config-wikimedia": "~0.4.0",
     "eslint-plugin-jsdoc": "3.0.0",
